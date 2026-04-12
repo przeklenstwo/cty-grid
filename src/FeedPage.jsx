@@ -12,16 +12,16 @@ const RANKS = {
 
 export default function FeedPage() {
   const navigate = useNavigate()
-  const [currentUser, setCurrentUser]   = useState(null)
+  const [currentUser, setCurrentUser]         = useState(null)
   const [currentUserRank, setCurrentUserRank] = useState(0)
-  const [isAdmin, setIsAdmin]           = useState(false)
-  const [feed, setFeed]                 = useState([])
-  const [following, setFollowing]       = useState([]) // lista ID obserwowanych
-  const [suggestions, setSuggestions]   = useState([]) // propozycje do obserwowania
-  const [crewMap, setCrewMap]           = useState({})
-  const [loading, setLoading]           = useState(true)
-  const [selectedSpot, setSelectedSpot] = useState(null)
-  const [tab, setTab]                   = useState('feed') // feed | discover
+  const [isAdmin, setIsAdmin]                 = useState(false)
+  const [feed, setFeed]                       = useState([])
+  const [following, setFollowing]             = useState([])
+  const [suggestions, setSuggestions]         = useState([])
+  const [crewMap, setCrewMap]                 = useState({})
+  const [loading, setLoading]                 = useState(true)
+  const [selectedSpot, setSelectedSpot]       = useState(null)
+  const [tab, setTab]                         = useState('feed')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -42,7 +42,6 @@ export default function FeedPage() {
     if (cr.data) { const map = {}; cr.data.forEach(c => { map[c.name] = c.color }); setCrewMap(map) }
     setIsAdmin(!!adm.data)
     setCurrentUserRank(curProf.data?.rank ?? 0)
-
     await fetchFollowing(userId)
     setLoading(false)
   }
@@ -51,40 +50,24 @@ export default function FeedPage() {
     const { data: followData } = await supabase.from('follows').select('following_id').eq('follower_id', userId)
     const ids = (followData || []).map(f => f.following_id)
     setFollowing(ids)
-
     if (ids.length > 0) {
-      const { data: feedData } = await supabase
-        .from('spots').select('*, profiles(username, rank, avatar_url)')
-        .in('user_id', ids)
-        .eq('is_public', true)
-        .in('status', ['approved', 'buffed'])
-        .order('created_at', { ascending: false })
-        .limit(50)
+      const { data: feedData } = await supabase.from('spots').select('*, profiles(username, rank, avatar_url)').in('user_id', ids).eq('is_public', true).in('status', ['approved', 'buffed']).order('created_at', { ascending: false }).limit(50)
       setFeed(feedData || [])
-    } else {
-      setFeed([])
-    }
-
-    // Propozycje — userzy których nie obserwujesz
-    const { data: allProfiles } = await supabase
-      .from('profiles').select('id, username, rank, avatar_url')
-      .neq('id', userId)
-      .not('is_ghost', 'eq', true)
-    const notFollowing = (allProfiles || []).filter(p => !ids.includes(p.id))
-    setSuggestions(notFollowing.slice(0, 10))
+    } else setFeed([])
+    const { data: allProfiles } = await supabase.from('profiles').select('id, username, rank, avatar_url').neq('id', userId).not('is_ghost', 'eq', true)
+    setSuggestions((allProfiles || []).filter(p => !ids.includes(p.id)).slice(0, 10))
   }
 
   async function toggleFollow(targetId) {
     if (!currentUser) return
-    const isFollowing = following.includes(targetId)
-    if (isFollowing) {
+    const isFollowingUser = following.includes(targetId)
+    if (isFollowingUser) {
       await supabase.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', targetId)
       setFollowing(prev => prev.filter(id => id !== targetId))
       setFeed(prev => prev.filter(s => s.user_id !== targetId))
     } else {
       await supabase.from('follows').insert({ follower_id: currentUser.id, following_id: targetId })
       setFollowing(prev => [...prev, targetId])
-      // Pobierz prace nowo obserwowanego
       const { data } = await supabase.from('spots').select('*, profiles(username, rank, avatar_url)').eq('user_id', targetId).eq('is_public', true).in('status', ['approved', 'buffed']).order('created_at', { ascending: false }).limit(10)
       if (data) setFeed(prev => [...data, ...prev].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)))
     }
@@ -92,41 +75,32 @@ export default function FeedPage() {
   }
 
   function Avatar({ profile, size = 40 }) {
-    const rank = profile?.rank ?? 0
-    const rInfo = RANKS[rank] ?? RANKS[0]
+    const rInfo = RANKS[profile?.rank ?? 0] ?? RANKS[0]
     const [imgError, setImgError] = useState(false)
     if (profile?.avatar_url && !imgError) {
       return <img src={profile.avatar_url} alt="" onError={() => setImgError(true)} style={{ width: size, height: size, borderRadius: size * 0.25, objectFit: 'cover', border: `2px solid ${rInfo.color}50`, flexShrink: 0 }} />
     }
-    return (
-      <div style={{ width: size, height: size, borderRadius: size * 0.25, background: `linear-gradient(135deg, ${rInfo.color}40, ${rInfo.color}15)`, border: `2px solid ${rInfo.color}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.32, fontWeight: 700, color: rInfo.color, fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>
-        {(profile?.username || '?').slice(0, 2).toUpperCase()}
-      </div>
-    )
+    return <div style={{ width: size, height: size, borderRadius: size * 0.25, background: `linear-gradient(135deg, ${rInfo.color}40, ${rInfo.color}15)`, border: `2px solid ${rInfo.color}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.32, fontWeight: 700, color: rInfo.color, fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>{(profile?.username || '?').slice(0, 2).toUpperCase()}</div>
   }
 
-  if (loading) return (
-    <div style={{ background: '#09090b', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: '#71717a', fontFamily: 'Space Grotesk, sans-serif' }}>Ładowanie...</p>
-    </div>
-  )
+  if (loading) return <div style={{ background: '#09090b', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#71717a', fontFamily: 'Space Grotesk, sans-serif' }}>Ładowanie...</p></div>
 
   return (
     <div style={{ minHeight: '100vh', background: '#09090b', fontFamily: 'Space Grotesk, sans-serif' }}>
 
       {/* NAVBAR */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>← Mapa</button>
         <h1 style={{ color: 'white', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>CTY-GRID</h1>
-        <div style={{ width: '60px' }} />
+        <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>👤</button>
       </div>
 
-      <div style={{ maxWidth: '680px', margin: '0 auto', padding: '28px 20px' }}>
+      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '20px 14px' }}>
 
         {/* TABS */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '20px' }}>
           {[{ id: 'feed', label: `📰 Feed (${feed.length})` }, { id: 'discover', label: `🔭 Odkryj (${suggestions.length})` }].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '8px 18px', borderRadius: '9px', border: 'none', cursor: 'pointer', background: tab === t.id ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.04)', color: tab === t.id ? '#f97316' : '#71717a', fontWeight: 600, fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif', outline: tab === t.id ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>{t.label}</button>
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: '9px', borderRadius: '9px', border: 'none', cursor: 'pointer', background: tab === t.id ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.04)', color: tab === t.id ? '#f97316' : '#71717a', fontWeight: 600, fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif', outline: tab === t.id ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>{t.label}</button>
           ))}
         </div>
 
@@ -136,42 +110,27 @@ export default function FeedPage() {
             {feed.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📰</div>
-                <p style={{ color: '#52525b', fontSize: '0.9rem', marginBottom: '16px' }}>Obserwuj innych żeby zobaczyć ich prace tutaj</p>
+                <p style={{ color: '#52525b', fontSize: '0.88rem', marginBottom: '16px' }}>Obserwuj innych żeby zobaczyć ich prace tutaj</p>
                 <button onClick={() => setTab('discover')} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>🔭 Odkryj userów</button>
               </div>
             ) : feed.map(spot => (
-              <div key={spot.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden', marginBottom: '16px' }}>
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px 10px' }}>
-                  <Avatar profile={spot.profiles} size={38} />
+              <div key={spot.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px 8px' }}>
+                  <Avatar profile={spot.profiles} size={36} />
                   <div style={{ flex: 1 }}>
-                    <button onClick={() => navigate(`/profile/${spot.user_id}`)} style={{ background: 'none', border: 'none', color: RANKS[spot.profiles?.rank ?? 0]?.color || '#71717a', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', padding: 0, fontFamily: 'Space Grotesk, sans-serif' }}>
-                      {spot.profiles?.username || 'Anonim'}
-                    </button>
-                    <p style={{ color: '#3f3f46', fontSize: '0.72rem', margin: 0 }}>{new Date(spot.created_at).toLocaleString('pl-PL')}</p>
+                    <button onClick={() => navigate(`/profile/${spot.user_id}`)} style={{ background: 'none', border: 'none', color: RANKS[spot.profiles?.rank ?? 0]?.color || '#71717a', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', padding: 0, fontFamily: 'Space Grotesk, sans-serif' }}>{spot.profiles?.username || 'Anonim'}</button>
+                    <p style={{ color: '#3f3f46', fontSize: '0.7rem', margin: 0 }}>{new Date(spot.created_at).toLocaleString('pl-PL')}</p>
                   </div>
-                  {spot.status === 'buffed' && <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '9999px', background: 'rgba(113,113,122,0.15)', color: '#71717a' }}>🪣 buffed</span>}
+                  {spot.status === 'buffed' && <span style={{ fontSize: '0.68rem', padding: '2px 7px', borderRadius: '9999px', background: 'rgba(113,113,122,0.15)', color: '#71717a' }}>🪣</span>}
                 </div>
-
-                {/* Zdjęcie */}
-                {spot.image_url && (
-                  <img src={spot.image_url} alt={spot.title} onClick={() => setSelectedSpot(spot)} style={{ width: '100%', maxHeight: '400px', objectFit: 'cover', cursor: 'pointer', display: 'block', filter: spot.status === 'buffed' ? 'grayscale(100%) brightness(0.6)' : 'none' }} />
-                )}
-
-                {/* Info */}
-                <div style={{ padding: '12px 16px' }}>
-                  <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 700, fontSize: '0.92rem', margin: '0 0 6px', textDecoration: spot.status === 'buffed' ? 'line-through' : 'none', cursor: 'pointer' }} onClick={() => setSelectedSpot(spot)}>{spot.title}</p>
-                  {spot.description && (
-                    <p style={{ color: '#71717a', fontSize: '0.82rem', margin: '0 0 8px', lineHeight: 1.5 }}>
-                      {spot.description.split(' ').map((w, i) => w.startsWith('#') ? <span key={i} style={{ color: '#f97316' }}>{w} </span> : w + ' ')}
-                    </p>
-                  )}
-                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                    {(spot.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
+                {spot.image_url && <img src={spot.image_url} alt={spot.title} onClick={() => setSelectedSpot(spot)} style={{ width: '100%', maxHeight: '380px', objectFit: 'cover', cursor: 'pointer', display: 'block', filter: spot.status === 'buffed' ? 'grayscale(100%) brightness(0.6)' : 'none' }} />}
+                <div style={{ padding: '10px 14px' }}>
+                  <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 700, fontSize: '0.9rem', margin: '0 0 5px', cursor: 'pointer' }} onClick={() => setSelectedSpot(spot)}>{spot.title}</p>
+                  {spot.description && <p style={{ color: '#71717a', fontSize: '0.8rem', margin: '0 0 7px', lineHeight: 1.5 }}>{spot.description.split(' ').map((w, i) => w.startsWith('#') ? <span key={i} style={{ color: '#f97316' }}>{w} </span> : w + ' ')}</p>}
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    {(spot.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
                   </div>
-                  <button onClick={() => setSelectedSpot(spot)} style={{ marginTop: '10px', background: 'none', border: 'none', color: '#52525b', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>
-                    💬 Komentarze →
-                  </button>
+                  <button onClick={() => setSelectedSpot(spot)} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>💬 Komentarze →</button>
                 </div>
               </div>
             ))}
@@ -181,27 +140,23 @@ export default function FeedPage() {
         {/* DISCOVER */}
         {tab === 'discover' && (
           <div>
-            <p style={{ color: '#52525b', fontSize: '0.8rem', marginBottom: '16px' }}>
-              Obserwujesz {following.length} {following.length === 1 ? 'osobę' : 'osób'}
-            </p>
+            <p style={{ color: '#52525b', fontSize: '0.78rem', marginBottom: '14px' }}>Obserwujesz {following.length} {following.length === 1 ? 'osobę' : 'osób'}</p>
             {suggestions.length === 0 ? (
               <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Obserwujesz wszystkich! 🎉</p>
             ) : suggestions.map(user => {
               const rInfo = RANKS[user.rank ?? 0] ?? RANKS[0]
               const isFollowingUser = following.includes(user.id)
               return (
-                <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', marginBottom: '8px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div onClick={() => navigate(`/profile/${user.id}`)} style={{ cursor: 'pointer' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '11px', background: `linear-gradient(135deg, ${rInfo.color}40, ${rInfo.color}15)`, border: `2px solid ${rInfo.color}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 700, color: rInfo.color, fontFamily: 'Space Grotesk, sans-serif' }}>
-                      {user.username.slice(0, 2).toUpperCase()}
-                    </div>
+                <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', marginBottom: '7px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div onClick={() => navigate(`/profile/${user.id}`)} style={{ cursor: 'pointer', width: '42px', height: '42px', borderRadius: '11px', background: `linear-gradient(135deg, ${rInfo.color}40, ${rInfo.color}15)`, border: `2px solid ${rInfo.color}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700, color: rInfo.color, fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>
+                    {user.username.slice(0, 2).toUpperCase()}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <button onClick={() => navigate(`/profile/${user.id}`)} style={{ background: 'none', border: 'none', color: 'white', fontWeight: 700, fontSize: '0.92rem', cursor: 'pointer', padding: 0, fontFamily: 'Space Grotesk, sans-serif' }}>{user.username}</button>
-                    <span style={{ marginLeft: '8px', padding: '2px 7px', borderRadius: '9999px', fontSize: '0.67rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color }}>{rInfo.label}</span>
+                    <button onClick={() => navigate(`/profile/${user.id}`)} style={{ background: 'none', border: 'none', color: 'white', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', padding: 0, fontFamily: 'Space Grotesk, sans-serif' }}>{user.username}</button>
+                    <span style={{ marginLeft: '7px', padding: '1px 6px', borderRadius: '9999px', fontSize: '0.63rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color }}>{rInfo.label}</span>
                   </div>
-                  <button onClick={() => toggleFollow(user.id)} style={{ padding: '7px 16px', borderRadius: '9px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', background: isFollowingUser ? 'rgba(255,255,255,0.08)' : '#f97316', color: isFollowingUser ? '#71717a' : 'white', transition: 'all 0.15s' }}>
-                    {isFollowingUser ? 'Obserwujesz' : '+ Obserwuj'}
+                  <button onClick={() => toggleFollow(user.id)} style={{ padding: '7px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif', background: isFollowingUser ? 'rgba(255,255,255,0.08)' : '#f97316', color: isFollowingUser ? '#71717a' : 'white', whiteSpace: 'nowrap' }}>
+                    {isFollowingUser ? '✓ Obserwujesz' : '+ Obserwuj'}
                   </button>
                 </div>
               )
@@ -211,12 +166,7 @@ export default function FeedPage() {
       </div>
 
       {selectedSpot && (
-        <SpotModal
-          spot={selectedSpot}
-          userId={currentUser?.id}
-          userRank={currentUserRank}
-          isAdmin={isAdmin}
-          onClose={() => setSelectedSpot(null)}
+        <SpotModal spot={selectedSpot} userId={currentUser?.id} userRank={currentUserRank} isAdmin={isAdmin} onClose={() => setSelectedSpot(null)}
           onDeleted={() => { setSelectedSpot(null); if (currentUser) fetchAll(currentUser.id) }}
           onRefresh={() => { if (currentUser) fetchAll(currentUser.id) }}
         />

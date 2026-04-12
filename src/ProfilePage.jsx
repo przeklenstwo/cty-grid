@@ -18,22 +18,12 @@ function getInitials(username) {
 
 function Avatar({ profile, size = 64, rankColor = '#71717a', onClick }) {
   const [imgError, setImgError] = useState(false)
-  const style = {
-    width: size, height: size, borderRadius: size * 0.22,
-    border: `2px solid ${rankColor}50`, flexShrink: 0,
-    cursor: onClick ? 'pointer' : 'default',
-  }
+  const style = { width: size, height: size, borderRadius: size * 0.22, border: `2px solid ${rankColor}50`, flexShrink: 0, cursor: onClick ? 'pointer' : 'default' }
   if (profile?.avatar_url && !imgError) {
     return <img src={profile.avatar_url} alt="" onError={() => setImgError(true)} onClick={onClick} style={{ ...style, objectFit: 'cover', display: 'block' }} />
   }
   return (
-    <div onClick={onClick} style={{
-      ...style,
-      background: `linear-gradient(135deg, ${rankColor}40, ${rankColor}15)`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.32, fontWeight: 700, color: rankColor,
-      fontFamily: 'Space Grotesk, sans-serif',
-    }}>
+    <div onClick={onClick} style={{ ...style, background: `linear-gradient(135deg, ${rankColor}40, ${rankColor}15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.32, fontWeight: 700, color: rankColor, fontFamily: 'Space Grotesk, sans-serif' }}>
       {getInitials(profile?.username)}
     </div>
   )
@@ -59,41 +49,32 @@ export default function ProfilePage() {
   const [selectedSpot, setSelectedSpot]       = useState(null)
   const [leaderboard, setLeaderboard]         = useState([])
   const [lbLoading, setLbLoading]             = useState(false)
-
-  const [activeCrew, setActiveCrew]   = useState(null)
-  const [showBuffed, setShowBuffed]   = useState(false)
-  const [showPrivate, setShowPrivate] = useState(false)
-
-  const [editMode, setEditMode]           = useState(false)
-  const [editUsername, setEditUsername]   = useState('')
-  const [editDiscord, setEditDiscord]     = useState('')
-  const [editBio, setEditBio]             = useState('')
-  const [saving, setSaving]               = useState(false)
-  const [saveError, setSaveError]         = useState('')
-
-  const [avatarPreview, setAvatarPreview] = useState(null)
-  const [avatarFile, setAvatarFile]       = useState(null)
+  const [activeCrew, setActiveCrew]           = useState(null)
+  const [showBuffed, setShowBuffed]           = useState(false)
+  const [showPrivate, setShowPrivate]         = useState(false)
+  const [editMode, setEditMode]               = useState(false)
+  const [editUsername, setEditUsername]       = useState('')
+  const [editDiscord, setEditDiscord]         = useState('')
+  const [editBio, setEditBio]                 = useState('')
+  const [saving, setSaving]                   = useState(false)
+  const [saveError, setSaveError]             = useState('')
+  const [avatarPreview, setAvatarPreview]     = useState(null)
+  const [avatarFile, setAvatarFile]           = useState(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
-
-  const [showPwForm, setShowPwForm]   = useState(false)
-  const [newPw, setNewPw]             = useState('')
-  const [confirmPw, setConfirmPw]     = useState('')
-  const [pwError, setPwError]         = useState('')
-  const [pwSuccess, setPwSuccess]     = useState(false)
-  const [changingPw, setChangingPw]   = useState(false)
-
-  const [togglingGhost, setTogglingGhost] = useState(false)
-
-  // Follow
-  const [isFollowing, setIsFollowing]     = useState(false)
-  const [followersCount, setFollowersCount] = useState(0)
-  const [followingCount, setFollowingCount] = useState(0)
-  const [togglingFollow, setTogglingFollow] = useState(false)
-
-  // Zaproszenia
-  const [inviteLink, setInviteLink]       = useState('')
+  const [showPwForm, setShowPwForm]           = useState(false)
+  const [newPw, setNewPw]                     = useState('')
+  const [confirmPw, setConfirmPw]             = useState('')
+  const [pwError, setPwError]                 = useState('')
+  const [pwSuccess, setPwSuccess]             = useState(false)
+  const [changingPw, setChangingPw]           = useState(false)
+  const [togglingGhost, setTogglingGhost]     = useState(false)
+  const [isFollowing, setIsFollowing]         = useState(false)
+  const [followersCount, setFollowersCount]   = useState(0)
+  const [followingCount, setFollowingCount]   = useState(0)
+  const [togglingFollow, setTogglingFollow]   = useState(false)
+  const [inviteLink, setInviteLink]           = useState('')
   const [generatingInvite, setGeneratingInvite] = useState(false)
-  const [inviteCopied, setInviteCopied]   = useState(false)
+  const [inviteCopied, setInviteCopied]       = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -119,25 +100,15 @@ export default function ProfilePage() {
       currentUserId ? supabase.from('admins').select('id').eq('user_id', currentUserId).single() : Promise.resolve({ data: null }),
       currentUserId ? supabase.from('profiles').select('rank').eq('id', currentUserId).single() : Promise.resolve({ data: null }),
     ])
-    setProfile(p.data)
-    setSpots(s.data || [])
-    setComments(c.data || [])
+    setProfile(p.data); setSpots(s.data || []); setComments(c.data || [])
     if (cr.data) { const map = {}; cr.data.forEach(c => { map[c.name] = c.color }); setCrewMap(map) }
-    setIsAdmin(!!adm.data)
-    setCurrentUserRank(curProf.data?.rank ?? 0)
-
-    // Follow stats
+    setIsAdmin(!!adm.data); setCurrentUserRank(curProf.data?.rank ?? 0)
     const [followers, following, myFollow] = await Promise.all([
       supabase.from('follows').select('id', { count: 'exact' }).eq('following_id', userId),
       supabase.from('follows').select('id', { count: 'exact' }).eq('follower_id', userId),
-      currentUserId && currentUserId !== userId
-        ? supabase.from('follows').select('id').eq('follower_id', currentUserId).eq('following_id', userId).single()
-        : Promise.resolve({ data: null }),
+      currentUserId && currentUserId !== userId ? supabase.from('follows').select('id').eq('follower_id', currentUserId).eq('following_id', userId).single() : Promise.resolve({ data: null }),
     ])
-    setFollowersCount(followers.count || 0)
-    setFollowingCount(following.count || 0)
-    setIsFollowing(!!myFollow.data)
-
+    setFollowersCount(followers.count || 0); setFollowingCount(following.count || 0); setIsFollowing(!!myFollow.data)
     setLoading(false)
   }
 
@@ -149,18 +120,15 @@ export default function ProfilePage() {
     ])
     if (!profiles || !allSpots) { setLbLoading(false); return }
     const rankBonus = [0, 50, 150, 300]
-    const lb = profiles
-      .filter(p => !p.is_ghost)
-      .map(p => {
-        const userSpots = allSpots.filter(s => s.user_id === p.id)
-        const active = userSpots.filter(s => s.status !== 'buffed')
-        const buffed = userSpots.filter(s => s.status === 'buffed')
-        const crews = [...new Set(userSpots.flatMap(s => s.crew_tags || []))]
-        const score = active.length * 10 + buffed.length * 2 + (rankBonus[p.rank ?? 0] || 0)
-        return { ...p, totalSpots: userSpots.length, activeSpots: active.length, buffedSpots: buffed.length, crews, score }
-      }).sort((a, b) => b.score - a.score)
-    setLeaderboard(lb)
-    setLbLoading(false)
+    const lb = profiles.filter(p => !p.is_ghost).map(p => {
+      const userSpots = allSpots.filter(s => s.user_id === p.id)
+      const active = userSpots.filter(s => s.status !== 'buffed')
+      const buffed = userSpots.filter(s => s.status === 'buffed')
+      const crews = [...new Set(userSpots.flatMap(s => s.crew_tags || []))]
+      const score = active.length * 10 + buffed.length * 2 + (rankBonus[p.rank ?? 0] || 0)
+      return { ...p, totalSpots: userSpots.length, activeSpots: active.length, buffedSpots: buffed.length, crews, score }
+    }).sort((a, b) => b.score - a.score)
+    setLeaderboard(lb); setLbLoading(false)
   }
 
   async function toggleFollow() {
@@ -168,12 +136,10 @@ export default function ProfilePage() {
     setTogglingFollow(true)
     if (isFollowing) {
       await supabase.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', profile.id)
-      setIsFollowing(false)
-      setFollowersCount(c => c - 1)
+      setIsFollowing(false); setFollowersCount(c => c - 1)
     } else {
       await supabase.from('follows').insert({ follower_id: currentUser.id, following_id: profile.id })
-      setIsFollowing(true)
-      setFollowersCount(c => c + 1)
+      setIsFollowing(true); setFollowersCount(c => c + 1)
     }
     setTogglingFollow(false)
   }
@@ -183,8 +149,7 @@ export default function ProfilePage() {
     setGeneratingInvite(true)
     const code = generateCode()
     await supabase.from('invites').insert({ code, created_by: currentUser.id })
-    const link = `${window.location.origin}/invite/${code}`
-    setInviteLink(link)
+    setInviteLink(`${window.location.origin}/invite/${code}`)
     setGeneratingInvite(false)
   }
 
@@ -203,10 +168,8 @@ export default function ProfilePage() {
   }
 
   async function handleAvatarSelect(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setAvatarFile(file)
-    setAvatarPreview(URL.createObjectURL(file))
+    const file = e.target.files[0]; if (!file) return
+    setAvatarFile(file); setAvatarPreview(URL.createObjectURL(file))
   }
 
   async function handleAvatarUpload() {
@@ -214,17 +177,13 @@ export default function ProfilePage() {
     setUploadingAvatar(true)
     const ext = avatarFile.name.split('.').pop()
     const fileName = `avatar_${profile.id}_${Date.now()}.${ext}`
-    if (profile.avatar_url) {
-      const oldPath = profile.avatar_url.split('/avatars/')[1]
-      if (oldPath) await supabase.storage.from('avatars').remove([oldPath])
-    }
+    if (profile.avatar_url) { const oldPath = profile.avatar_url.split('/avatars/')[1]; if (oldPath) await supabase.storage.from('avatars').remove([oldPath]) }
     const { error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, avatarFile, { upsert: true })
     if (uploadErr) { setUploadingAvatar(false); return }
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
     await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', profile.id)
     setProfile(p => ({ ...p, avatar_url: urlData.publicUrl }))
-    setAvatarFile(null); setAvatarPreview(null)
-    setUploadingAvatar(false)
+    setAvatarFile(null); setAvatarPreview(null); setUploadingAvatar(false)
   }
 
   async function handleRemoveAvatar() {
@@ -232,8 +191,7 @@ export default function ProfilePage() {
     const oldPath = profile.avatar_url.split('/avatars/')[1]
     if (oldPath) await supabase.storage.from('avatars').remove([oldPath])
     await supabase.from('profiles').update({ avatar_url: null }).eq('id', profile.id)
-    setProfile(p => ({ ...p, avatar_url: null }))
-    setAvatarFile(null); setAvatarPreview(null)
+    setProfile(p => ({ ...p, avatar_url: null })); setAvatarFile(null); setAvatarPreview(null)
   }
 
   async function handleSaveProfile() {
@@ -242,11 +200,7 @@ export default function ProfilePage() {
       const { data: existing } = await supabase.from('profiles').select('id').eq('username', editUsername).single()
       if (existing) { setSaveError('Ta nazwa jest już zajęta'); setSaving(false); return }
     }
-    const { error } = await supabase.from('profiles').update({
-      username: editUsername.trim(),
-      discord: editDiscord.trim() || null,
-      bio: editBio.trim() || null,
-    }).eq('id', profile.id)
+    const { error } = await supabase.from('profiles').update({ username: editUsername.trim(), discord: editDiscord.trim() || null, bio: editBio.trim() || null }).eq('id', profile.id)
     if (error) { setSaveError(error.message); setSaving(false); return }
     setProfile(p => ({ ...p, username: editUsername, discord: editDiscord, bio: editBio }))
     setEditMode(false); setSaving(false)
@@ -259,18 +213,16 @@ export default function ProfilePage() {
     setChangingPw(true)
     const { error } = await supabase.auth.updateUser({ password: newPw })
     if (error) { setPwError(error.message); setChangingPw(false); return }
-    setPwSuccess(true); setNewPw(''); setConfirmPw('')
-    setChangingPw(false)
+    setPwSuccess(true); setNewPw(''); setConfirmPw(''); setChangingPw(false)
     setTimeout(() => { setPwSuccess(false); setShowPwForm(false) }, 2500)
   }
 
   const isOwnProfile = currentUser?.id === profile?.id
   const rank = profile?.rank ?? 0
   const rankInfo = RANKS[rank] ?? RANKS[0]
-  const publicSpots  = spots.filter(s => s.is_public)
-  const buffedSpots  = spots.filter(s => s.status === 'buffed')
-  const allCrews     = [...new Set(spots.flatMap(s => s.crew_tags || []))]
-
+  const publicSpots = spots.filter(s => s.is_public)
+  const buffedSpots = spots.filter(s => s.status === 'buffed')
+  const allCrews = [...new Set(spots.flatMap(s => s.crew_tags || []))]
   const gallerySource = useMemo(() => spots.filter(s => isOwnProfile || s.is_public), [spots, isOwnProfile])
   const filteredGallery = useMemo(() => gallerySource.filter(spot => {
     if (!showBuffed && spot.status === 'buffed') return false
@@ -278,198 +230,152 @@ export default function ProfilePage() {
     if (activeCrew && !(spot.crew_tags || []).includes(activeCrew)) return false
     return true
   }), [gallerySource, activeCrew, showBuffed, showPrivate])
+  const activity = [...spots.map(s => ({ type: 'spot', date: s.created_at, data: s })), ...comments.map(c => ({ type: 'comment', date: c.created_at, data: c }))].sort((a, b) => new Date(b.date) - new Date(a.date))
 
-  const activity = [
-    ...spots.map(s => ({ type: 'spot', date: s.created_at, data: s })),
-    ...comments.map(c => ({ type: 'comment', date: c.created_at, data: c })),
-  ].sort((a, b) => new Date(b.date) - new Date(a.date))
+  const inp = { width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '0.9rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }
 
-  const inp = {
-    width: '100%', padding: '10px 14px', borderRadius: '10px',
-    border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)',
-    color: 'white', fontSize: '0.9rem', fontFamily: 'Space Grotesk, sans-serif',
-    outline: 'none', boxSizing: 'border-box',
-  }
-
-  if (loading) return (
-    <div style={{ background: '#09090b', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: '#71717a', fontFamily: 'Space Grotesk, sans-serif' }}>Ładowanie...</p>
-    </div>
-  )
-  if (!profile) return (
-    <div style={{ background: '#09090b', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: '#71717a', fontFamily: 'Space Grotesk, sans-serif' }}>Nie znaleziono profilu</p>
-    </div>
-  )
+  if (loading) return <div style={{ background: '#09090b', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#71717a', fontFamily: 'Space Grotesk, sans-serif' }}>Ładowanie...</p></div>
+  if (!profile) return <div style={{ background: '#09090b', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#71717a', fontFamily: 'Space Grotesk, sans-serif' }}>Nie znaleziono profilu</p></div>
 
   return (
     <div style={{ minHeight: '100vh', background: '#09090b', fontFamily: 'Space Grotesk, sans-serif' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .profile-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .profile-header-inner { flex-direction: column !important; align-items: flex-start !important; }
+          .profile-gallery-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .profile-tabs { overflow-x: auto; }
+          .profile-tabs button { white-space: nowrap; }
+        }
+      `}</style>
 
-      <div style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      {/* NAVBAR */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>← Mapa</button>
         <h1 style={{ color: 'white', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>CTY-GRID</h1>
-        <button onClick={() => navigate('/feed')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>📰 Feed</button>
+        <button onClick={() => navigate('/feed')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>📰</button>
       </div>
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 20px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px 14px' }}>
 
         {/* PROFIL HEADER */}
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '28px', marginBottom: '24px' }}>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '20px', marginBottom: '18px' }}>
           {!editMode ? (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
-                <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
+              <div className="profile-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px' }}>
+                <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
                   <div style={{ position: 'relative' }}>
-                    <Avatar profile={profile} size={72} rankColor={rankInfo.color} />
+                    <Avatar profile={profile} size={66} rankColor={rankInfo.color} />
                     {isOwnProfile && (
-                      <label style={{ position: 'absolute', bottom: '-4px', right: '-4px', background: '#f97316', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.65rem', border: '2px solid #09090b' }}>
-                        📷
-                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarSelect} />
+                      <label style={{ position: 'absolute', bottom: '-4px', right: '-4px', background: '#f97316', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.6rem', border: '2px solid #09090b' }}>
+                        📷<input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarSelect} />
                       </label>
                     )}
                   </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.5rem', letterSpacing: '-0.02em', margin: 0 }}>{profile.username}</h2>
-                      {profile.is_ghost && <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: 'rgba(113,113,122,0.15)', color: '#71717a', border: '1px solid rgba(113,113,122,0.25)' }}>👻 Ghost</span>}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                      <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.3rem', letterSpacing: '-0.02em', margin: 0 }}>{profile.username}</h2>
+                      {profile.is_ghost && <span style={{ padding: '2px 7px', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 700, background: 'rgba(113,113,122,0.15)', color: '#71717a', border: '1px solid rgba(113,113,122,0.25)' }}>👻</span>}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '5px', flexWrap: 'wrap' }}>
-                      <span style={{ padding: '3px 10px', borderRadius: '9999px', fontSize: '0.73rem', fontWeight: 700, background: `${rankInfo.color}18`, color: rankInfo.color, border: `1px solid ${rankInfo.color}40` }}>
-                        {rankInfo.icon} {rankInfo.label}
-                      </span>
-                      {profile.discord && <span style={{ color: '#71717a', fontSize: '0.78rem' }}>🎮 {profile.discord}</span>}
+                    <div style={{ display: 'flex', gap: '7px', alignItems: 'center', marginTop: '5px', flexWrap: 'wrap' }}>
+                      <span style={{ padding: '2px 9px', borderRadius: '9999px', fontSize: '0.7rem', fontWeight: 700, background: `${rankInfo.color}18`, color: rankInfo.color, border: `1px solid ${rankInfo.color}40` }}>{rankInfo.icon} {rankInfo.label}</span>
+                      {profile.discord && <span style={{ color: '#71717a', fontSize: '0.75rem' }}>🎮 {profile.discord}</span>}
                     </div>
-                    {profile.bio && <p style={{ color: '#a1a1aa', fontSize: '0.86rem', marginTop: '10px', lineHeight: 1.6, maxWidth: '500px' }}>{profile.bio}</p>}
-
-                    {/* Follow stats */}
-                    <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
-                      <span style={{ color: '#71717a', fontSize: '0.78rem' }}><strong style={{ color: 'white' }}>{followersCount}</strong> obserwujących</span>
-                      <span style={{ color: '#71717a', fontSize: '0.78rem' }}><strong style={{ color: 'white' }}>{followingCount}</strong> obserwuje</span>
+                    {profile.bio && <p style={{ color: '#a1a1aa', fontSize: '0.83rem', marginTop: '8px', lineHeight: 1.5, maxWidth: '460px' }}>{profile.bio}</p>}
+                    <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
+                      <span style={{ color: '#71717a', fontSize: '0.75rem' }}><strong style={{ color: 'white' }}>{followersCount}</strong> obserwujących</span>
+                      <span style={{ color: '#71717a', fontSize: '0.75rem' }}><strong style={{ color: 'white' }}>{followingCount}</strong> obserwuje</span>
                     </div>
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                  {/* Przycisk Follow — tylko dla cudzych profili */}
+                <div style={{ display: 'flex', gap: '7px', flexShrink: 0 }}>
                   {!isOwnProfile && currentUser && (
-                    <button onClick={toggleFollow} disabled={togglingFollow} style={{
-                      padding: '7px 16px', borderRadius: '9px', border: 'none',
-                      background: isFollowing ? 'rgba(255,255,255,0.08)' : '#f97316',
-                      color: isFollowing ? '#71717a' : 'white',
-                      fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
-                      fontFamily: 'Space Grotesk, sans-serif', transition: 'all 0.15s',
-                      opacity: togglingFollow ? 0.6 : 1,
-                    }}>
+                    <button onClick={toggleFollow} disabled={togglingFollow} style={{ padding: '7px 14px', borderRadius: '9px', border: 'none', background: isFollowing ? 'rgba(255,255,255,0.08)' : '#f97316', color: isFollowing ? '#71717a' : 'white', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: togglingFollow ? 0.6 : 1 }}>
                       {isFollowing ? 'Obserwujesz' : '+ Obserwuj'}
                     </button>
                   )}
-                  {isOwnProfile && (
-                    <button onClick={() => { setEditUsername(profile.username); setEditDiscord(profile.discord || ''); setEditBio(profile.bio || ''); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', padding: '7px 14px', borderRadius: '9px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>✏️ Edytuj</button>
-                  )}
+                  {isOwnProfile && <button onClick={() => { setEditUsername(profile.username); setEditDiscord(profile.discord || ''); setEditBio(profile.bio || ''); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', padding: '7px 12px', borderRadius: '9px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>✏️ Edytuj</button>}
                 </div>
               </div>
 
               {avatarPreview && (
-                <div style={{ marginTop: '16px', padding: '14px', borderRadius: '12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <img src={avatarPreview} alt="" style={{ width: '52px', height: '52px', borderRadius: '10px', objectFit: 'cover' }} />
-                  <p style={{ color: '#a1a1aa', fontSize: '0.82rem', margin: 0, flex: 1 }}>Nowe zdjęcie profilowe</p>
-                  <button onClick={handleAvatarUpload} disabled={uploadingAvatar} style={{ padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>{uploadingAvatar ? '...' : 'Zapisz'}</button>
-                  <button onClick={() => { setAvatarFile(null); setAvatarPreview(null) }} style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: 'rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
+                <div style={{ marginTop: '12px', padding: '12px', borderRadius: '12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <img src={avatarPreview} alt="" style={{ width: '46px', height: '46px', borderRadius: '10px', objectFit: 'cover' }} />
+                  <p style={{ color: '#a1a1aa', fontSize: '0.8rem', margin: 0, flex: 1 }}>Nowe zdjęcie profilowe</p>
+                  <button onClick={handleAvatarUpload} disabled={uploadingAvatar} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>{uploadingAvatar ? '...' : 'Zapisz'}</button>
+                  <button onClick={() => { setAvatarFile(null); setAvatarPreview(null) }} style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', background: 'rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
                 </div>
               )}
 
-              {allCrews.length > 0 && (
-                <div style={{ display: 'flex', gap: '6px', marginTop: '16px', flexWrap: 'wrap' }}>
-                  {allCrews.map(crew => <span key={crew} style={{ padding: '4px 14px', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000', boxShadow: `0 0 10px ${crewMap[crew] || '#f97316'}40` }}>{crew}</span>)}
-                </div>
-              )}
+              {allCrews.length > 0 && <div style={{ display: 'flex', gap: '5px', marginTop: '12px', flexWrap: 'wrap' }}>{allCrews.map(crew => <span key={crew} style={{ padding: '3px 12px', borderRadius: '9999px', fontSize: '0.78rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}</div>}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '18px' }}>
-                {[
-                  { label: 'Prace', value: spots.length, color: '#f97316' },
-                  { label: 'Public', value: publicSpots.length, color: '#22c55e' },
-                  { label: 'Buffed', value: buffedSpots.length, color: '#71717a' },
-                  { label: 'Komentarze', value: comments.length, color: '#38bdf8' },
-                ].map(stat => (
-                  <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ color: stat.color, fontWeight: 700, fontSize: '1.5rem', margin: 0 }}>{stat.value}</p>
-                    <p style={{ color: '#52525b', fontSize: '0.7rem', margin: '2px 0 0', fontWeight: 600 }}>{stat.label}</p>
+              <div className="profile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '14px' }}>
+                {[{ label: 'Prace', value: spots.length, color: '#f97316' }, { label: 'Public', value: publicSpots.length, color: '#22c55e' }, { label: 'Buffed', value: buffedSpots.length, color: '#71717a' }, { label: 'Komentarze', value: comments.length, color: '#38bdf8' }].map(stat => (
+                  <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '10px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ color: stat.color, fontWeight: 700, fontSize: '1.4rem', margin: 0 }}>{stat.value}</p>
+                    <p style={{ color: '#52525b', fontSize: '0.68rem', margin: '2px 0 0', fontWeight: 600 }}>{stat.label}</p>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-                <Avatar profile={{ ...profile, avatar_url: avatarPreview || profile.avatar_url }} size={60} rankColor={rankInfo.color} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <Avatar profile={{ ...profile, avatar_url: avatarPreview || profile.avatar_url }} size={54} rankColor={rankInfo.color} />
                 <div>
-                  <p style={{ color: 'white', fontWeight: 600, fontSize: '0.92rem', margin: 0 }}>Edycja profilu</p>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                    <label style={{ padding: '4px 12px', borderRadius: '8px', background: 'rgba(249,115,22,0.12)', color: '#f97316', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(249,115,22,0.25)' }}>
-                      📷 Zmień zdjęcie
-                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarSelect} />
+                  <p style={{ color: 'white', fontWeight: 600, fontSize: '0.9rem', margin: 0 }}>Edycja profilu</p>
+                  <div style={{ display: 'flex', gap: '7px', marginTop: '5px', flexWrap: 'wrap' }}>
+                    <label style={{ padding: '4px 10px', borderRadius: '8px', background: 'rgba(249,115,22,0.12)', color: '#f97316', fontSize: '0.73rem', fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(249,115,22,0.25)' }}>
+                      📷 Zmień<input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarSelect} />
                     </label>
-                    {profile.avatar_url && (
-                      <button onClick={handleRemoveAvatar} style={{ padding: '4px 12px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.22)', fontFamily: 'Space Grotesk, sans-serif' }}>🗑 Usuń zdjęcie</button>
-                    )}
+                    {profile.avatar_url && <button onClick={handleRemoveAvatar} style={{ padding: '4px 10px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.73rem', fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.22)', fontFamily: 'Space Grotesk, sans-serif' }}>🗑</button>}
                   </div>
                 </div>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                 <input style={inp} placeholder="Nazwa użytkownika" value={editUsername} onChange={e => setEditUsername(e.target.value)} />
                 <input style={inp} placeholder="Discord (opcjonalnie)" value={editDiscord} onChange={e => setEditDiscord(e.target.value)} />
-                <textarea style={{ ...inp, minHeight: '80px', resize: 'vertical' }} placeholder="Bio (opcjonalnie)" value={editBio} onChange={e => setEditBio(e.target.value)} />
-                {saveError && <p style={{ color: '#f87171', fontSize: '0.82rem' }}>{saveError}</p>}
-
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <textarea style={{ ...inp, minHeight: '70px', resize: 'vertical' }} placeholder="Bio (opcjonalnie)" value={editBio} onChange={e => setEditBio(e.target.value)} />
+                {saveError && <p style={{ color: '#f87171', fontSize: '0.8rem' }}>{saveError}</p>}
+                <div style={{ display: 'flex', gap: '9px' }}>
                   <button onClick={() => setEditMode(false)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: '#71717a', cursor: 'pointer', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>Anuluj</button>
-                  <button onClick={handleSaveProfile} disabled={saving} style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: saving ? 0.7 : 1 }}>{saving ? 'Zapisywanie...' : 'Zapisz zmiany'}</button>
+                  <button onClick={handleSaveProfile} disabled={saving} style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: saving ? 0.7 : 1 }}>{saving ? '...' : 'Zapisz'}</button>
                 </div>
 
-                {/* Zmiana hasła */}
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '14px', marginTop: '4px' }}>
-                  <button onClick={() => setShowPwForm(s => !s)} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0, fontWeight: 600 }}>
-                    🔑 {showPwForm ? 'Ukryj' : 'Zmień hasło'}
-                  </button>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+                  <button onClick={() => setShowPwForm(s => !s)} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0, fontWeight: 600 }}>🔑 {showPwForm ? 'Ukryj' : 'Zmień hasło'}</button>
                   {showPwForm && (
-                    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
                       <input style={inp} type="password" placeholder="Nowe hasło (min. 6 znaków)" value={newPw} onChange={e => setNewPw(e.target.value)} />
                       <input style={inp} type="password" placeholder="Powtórz nowe hasło" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
-                      {pwError && <p style={{ color: '#f87171', fontSize: '0.8rem' }}>{pwError}</p>}
-                      {pwSuccess && <p style={{ color: '#22c55e', fontSize: '0.8rem' }}>✅ Hasło zmienione!</p>}
-                      <button onClick={handleChangePassword} disabled={changingPw} style={{ padding: '9px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', fontWeight: 600, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.85rem' }}>
-                        {changingPw ? '...' : 'Zmień hasło'}
-                      </button>
+                      {pwError && <p style={{ color: '#f87171', fontSize: '0.78rem' }}>{pwError}</p>}
+                      {pwSuccess && <p style={{ color: '#22c55e', fontSize: '0.78rem' }}>✅ Hasło zmienione!</p>}
+                      <button onClick={handleChangePassword} disabled={changingPw} style={{ padding: '9px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', fontWeight: 600, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.83rem' }}>{changingPw ? '...' : 'Zmień hasło'}</button>
                     </div>
                   )}
                 </div>
 
-                {/* Generator zaproszeń */}
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '14px' }}>
-                  <p style={{ color: '#71717a', fontSize: '0.82rem', fontWeight: 600, marginBottom: '8px' }}>🔗 Zaproś znajomego</p>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+                  <p style={{ color: '#71717a', fontSize: '0.8rem', fontWeight: 600, marginBottom: '7px' }}>🔗 Zaproś znajomego</p>
                   {!inviteLink ? (
-                    <button onClick={generateInvite} disabled={generatingInvite} style={{ padding: '8px 16px', borderRadius: '9px', border: 'none', background: 'rgba(249,115,22,0.12)', color: '#f97316', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', outline: '1px solid rgba(249,115,22,0.25)', opacity: generatingInvite ? 0.6 : 1 }}>
-                      {generatingInvite ? '...' : '🔗 Generuj link zaproszenia'}
+                    <button onClick={generateInvite} disabled={generatingInvite} style={{ padding: '8px 14px', borderRadius: '9px', border: 'none', background: 'rgba(249,115,22,0.12)', color: '#f97316', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', outline: '1px solid rgba(249,115,22,0.25)', opacity: generatingInvite ? 0.6 : 1 }}>
+                      {generatingInvite ? '...' : '🔗 Generuj link'}
                     </button>
                   ) : (
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <input readOnly value={inviteLink} style={{ ...inp, fontSize: '0.75rem', color: '#a1a1aa' }} />
-                      <button onClick={copyInvite} style={{ padding: '10px 14px', borderRadius: '9px', border: 'none', background: inviteCopied ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.12)', color: inviteCopied ? '#22c55e' : '#f97316', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0, outline: '1px solid rgba(249,115,22,0.25)', whiteSpace: 'nowrap' }}>
-                        {inviteCopied ? '✅ Skopiowano' : '📋 Kopiuj'}
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <input readOnly value={inviteLink} style={{ ...inp, fontSize: '0.72rem', color: '#a1a1aa' }} />
+                      <button onClick={copyInvite} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: inviteCopied ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.12)', color: inviteCopied ? '#22c55e' : '#f97316', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0, outline: '1px solid rgba(249,115,22,0.25)' }}>
+                        {inviteCopied ? '✅' : '📋'}
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Tryb Ghost */}
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '10px', background: profile.is_ghost ? 'rgba(113,113,122,0.1)' : 'rgba(255,255,255,0.02)', border: profile.is_ghost ? '1px solid rgba(113,113,122,0.25)' : '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '10px', background: profile.is_ghost ? 'rgba(113,113,122,0.1)' : 'rgba(255,255,255,0.02)', border: profile.is_ghost ? '1px solid rgba(113,113,122,0.25)' : '1px solid rgba(255,255,255,0.06)' }}>
                     <div>
-                      <p style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem', margin: 0 }}>
-                        👻 Tryb Ghost {profile.is_ghost && <span style={{ color: '#71717a', fontSize: '0.75rem', fontWeight: 400 }}>— aktywny</span>}
-                      </p>
-                      <p style={{ color: '#52525b', fontSize: '0.73rem', marginTop: '2px', marginBottom: 0 }}>Ukrywa Cię z rankingu i leaderboardu</p>
+                      <p style={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0 }}>👻 Tryb Ghost {profile.is_ghost && <span style={{ color: '#71717a', fontSize: '0.72rem', fontWeight: 400 }}>— aktywny</span>}</p>
+                      <p style={{ color: '#52525b', fontSize: '0.7rem', marginTop: '2px', marginBottom: 0 }}>Ukrywa z rankingu</p>
                     </div>
                     <div onClick={togglingGhost ? undefined : toggleGhost} style={{ width: '44px', height: '24px', borderRadius: '9999px', background: profile.is_ghost ? '#71717a' : '#27272a', cursor: togglingGhost ? 'not-allowed' : 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
                       <div style={{ position: 'absolute', top: '3px', left: profile.is_ghost ? '23px' : '3px', width: '18px', height: '18px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
@@ -477,8 +383,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Nuklearny guzik */}
-                <div style={{ borderTop: '1px solid rgba(239,68,68,0.1)', paddingTop: '14px' }}>
+                <div style={{ borderTop: '1px solid rgba(239,68,68,0.1)', paddingTop: '12px' }}>
                   <NuclearButton userId={profile.id} username={profile.username} />
                 </div>
               </div>
@@ -487,60 +392,36 @@ export default function ProfilePage() {
         </div>
 
         {/* TABS */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '20px' }}>
-          {[
-            { id: 'gallery',     label: `🖼 Galeria (${gallerySource.length})` },
-            { id: 'activity',    label: `⚡ Aktywność (${activity.length})` },
-            { id: 'leaderboard', label: '🏆 Ranking' },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              padding: '8px 18px', borderRadius: '9px', border: 'none', cursor: 'pointer',
-              background: tab === t.id ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.04)',
-              color: tab === t.id ? '#f97316' : '#71717a',
-              fontWeight: 600, fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif',
-              outline: tab === t.id ? '1px solid rgba(249,115,22,0.35)' : 'none',
-            }}>{t.label}</button>
+        <div className="profile-tabs" style={{ display: 'flex', gap: '4px', marginBottom: '16px' }}>
+          {[{ id: 'gallery', label: `🖼 Galeria (${gallerySource.length})` }, { id: 'activity', label: `⚡ Aktywność (${activity.length})` }, { id: 'leaderboard', label: '🏆 Ranking' }].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '8px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer', background: tab === t.id ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.04)', color: tab === t.id ? '#f97316' : '#71717a', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'Space Grotesk, sans-serif', outline: tab === t.id ? '1px solid rgba(249,115,22,0.35)' : 'none', whiteSpace: 'nowrap' }}>{t.label}</button>
           ))}
         </div>
 
         {/* GALERIA */}
         {tab === 'gallery' && (
           <div>
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button onClick={() => setActiveCrew(null)} style={{ padding: '5px 14px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: activeCrew === null ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', color: activeCrew === null ? 'white' : '#52525b', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: activeCrew === null ? '1px solid rgba(255,255,255,0.2)' : 'none' }}>Wszystkie</button>
-              {allCrews.map(crew => {
-                const color = crewMap[crew] || '#f97316'
-                const active = activeCrew === crew
-                return <button key={crew} onClick={() => setActiveCrew(active ? null : crew)} style={{ padding: '5px 14px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: active ? color : 'rgba(255,255,255,0.04)', color: active ? '#000' : color, fontWeight: 700, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: active ? 'none' : `1px solid ${color}50`, boxShadow: active ? `0 0 10px ${color}50` : 'none', transition: 'all 0.15s' }}>{crew}</button>
-              })}
-              <button onClick={() => setShowBuffed(b => !b)} style={{ padding: '5px 14px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: showBuffed ? 'rgba(113,113,122,0.15)' : 'rgba(255,255,255,0.04)', color: showBuffed ? '#a1a1aa' : '#52525b', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: showBuffed ? '1px solid rgba(113,113,122,0.3)' : 'none' }}>🪣 Buffed</button>
-              {isOwnProfile && <button onClick={() => setShowPrivate(b => !b)} style={{ padding: '5px 14px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: showPrivate ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', color: showPrivate ? '#f97316' : '#52525b', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: showPrivate ? '1px solid rgba(249,115,22,0.3)' : 'none' }}>🔒 Private</button>}
-              <span style={{ color: '#3f3f46', fontSize: '0.72rem' }}>{filteredGallery.length} prac</span>
+            <div style={{ display: 'flex', gap: '5px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button onClick={() => setActiveCrew(null)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: activeCrew === null ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', color: activeCrew === null ? 'white' : '#52525b', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: activeCrew === null ? '1px solid rgba(255,255,255,0.2)' : 'none' }}>Wszystkie</button>
+              {allCrews.map(crew => { const color = crewMap[crew] || '#f97316'; const active = activeCrew === crew; return <button key={crew} onClick={() => setActiveCrew(active ? null : crew)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: active ? color : 'rgba(255,255,255,0.04)', color: active ? '#000' : color, fontWeight: 700, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: active ? 'none' : `1px solid ${color}50` }}>{crew}</button> })}
+              <button onClick={() => setShowBuffed(b => !b)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: showBuffed ? 'rgba(113,113,122,0.15)' : 'rgba(255,255,255,0.04)', color: showBuffed ? '#a1a1aa' : '#52525b', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>🪣</button>
+              {isOwnProfile && <button onClick={() => setShowPrivate(b => !b)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: showPrivate ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', color: showPrivate ? '#f97316' : '#52525b', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>🔒</button>}
+              <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>{filteredGallery.length} prac</span>
             </div>
             {filteredGallery.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#3f3f46' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🎨</div>
-                Brak prac spełniających filtry
-              </div>
+              <div style={{ textAlign: 'center', padding: '50px 20px', color: '#3f3f46' }}><div style={{ fontSize: '2rem', marginBottom: '10px' }}>🎨</div>Brak prac</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+              <div className="profile-gallery-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '9px' }}>
                 {filteredGallery.map(spot => (
-                  <div key={spot.id} onClick={() => setSelectedSpot(spot)} style={{ borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', background: 'rgba(255,255,255,0.03)', border: spot.status === 'buffed' ? '1px solid rgba(113,113,122,0.25)' : '1px solid rgba(255,255,255,0.07)', transition: 'transform 0.15s, box-shadow 0.15s', position: 'relative' }}
+                  <div key={spot.id} onClick={() => setSelectedSpot(spot)} style={{ borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', background: 'rgba(255,255,255,0.03)', border: spot.status === 'buffed' ? '1px solid rgba(113,113,122,0.25)' : '1px solid rgba(255,255,255,0.07)', position: 'relative' }}
                     onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.4)' }}
                     onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none' }}
                   >
-                    {spot.image_url ? <img src={spot.image_url} alt={spot.title} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block', filter: spot.status === 'buffed' ? 'grayscale(100%) brightness(0.6)' : 'none' }} /> : <div style={{ aspectRatio: '1', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>🎨</div>}
+                    {spot.image_url ? <img src={spot.image_url} alt={spot.title} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block', filter: spot.status === 'buffed' ? 'grayscale(100%) brightness(0.6)' : 'none' }} /> : <div style={{ aspectRatio: '1', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>🎨</div>}
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', top: '8px', left: '8px', display: 'flex', gap: '4px' }}>
-                      {spot.status === 'buffed' && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: 'rgba(0,0,0,0.75)', color: '#71717a' }}>🪣</span>}
-                      {!spot.is_public && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: 'rgba(0,0,0,0.75)', color: '#f97316' }}>🔒</span>}
-                    </div>
-                    <div style={{ padding: '10px 12px' }}>
-                      <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0, textDecoration: spot.status === 'buffed' ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.title}</p>
-                      <div style={{ display: 'flex', gap: '4px', marginTop: '5px', flexWrap: 'wrap' }}>
-                        {(spot.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
-                      </div>
-                      <p style={{ color: '#3f3f46', fontSize: '0.68rem', marginTop: '4px', marginBottom: 0 }}>{new Date(spot.created_at).toLocaleDateString('pl-PL')}</p>
+                    <div style={{ padding: '8px 10px' }}>
+                      <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 600, fontSize: '0.82rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.title}</p>
+                      <p style={{ color: '#3f3f46', fontSize: '0.65rem', marginTop: '3px', marginBottom: 0 }}>{new Date(spot.created_at).toLocaleDateString('pl-PL')}</p>
                     </div>
                   </div>
                 ))}
@@ -554,24 +435,17 @@ export default function ProfilePage() {
           <div>
             {activity.length === 0 && <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Brak aktywności</p>}
             {activity.map((item, i) => (
-              <div key={i} onClick={() => item.type === 'spot' && setSelectedSpot(item.data)} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: item.type === 'spot' ? 'pointer' : 'default' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', background: item.type === 'spot' ? 'rgba(249,115,22,0.12)' : 'rgba(56,189,248,0.1)' }}>
+              <div key={i} onClick={() => item.type === 'spot' && setSelectedSpot(item.data)} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: item.type === 'spot' ? 'pointer' : 'default' }}>
+                <div style={{ width: '34px', height: '34px', borderRadius: '9px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', background: item.type === 'spot' ? 'rgba(249,115,22,0.12)' : 'rgba(56,189,248,0.1)' }}>
                   {item.type === 'spot' ? '📍' : '💬'}
                 </div>
                 <div style={{ flex: 1 }}>
                   {item.type === 'spot' ? (
-                    <>
-                      <p style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem', margin: 0 }}>Dodano pracę: <span style={{ color: '#f97316' }}>{item.data.title}</span></p>
-                      <div style={{ display: 'flex', gap: '5px', marginTop: '4px', flexWrap: 'wrap' }}>
-                        {(item.data.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.68rem', fontWeight: 700, padding: '1px 7px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
-                      </div>
-                    </>
+                    <p style={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0 }}>Dodano: <span style={{ color: '#f97316' }}>{item.data.title}</span></p>
                   ) : (
-                    <p style={{ color: '#a1a1aa', fontSize: '0.88rem', margin: 0 }}>
-                      Skomentował <span style={{ color: '#38bdf8' }}>{item.data.spots?.title || 'pracę'}</span>: <span style={{ color: '#d4d4d8' }}>{item.data.content}</span>
-                    </p>
+                    <p style={{ color: '#a1a1aa', fontSize: '0.85rem', margin: 0 }}>Komentarz do <span style={{ color: '#38bdf8' }}>{item.data.spots?.title || 'pracy'}</span></p>
                   )}
-                  <p style={{ color: '#3f3f46', fontSize: '0.7rem', marginTop: '4px' }}>{new Date(item.date).toLocaleString('pl-PL')}</p>
+                  <p style={{ color: '#3f3f46', fontSize: '0.68rem', marginTop: '3px' }}>{new Date(item.date).toLocaleString('pl-PL')}</p>
                 </div>
               </div>
             ))}
@@ -581,36 +455,28 @@ export default function ProfilePage() {
         {/* LEADERBOARD */}
         {tab === 'leaderboard' && (
           <div>
-            <p style={{ color: '#52525b', fontSize: '0.78rem', marginBottom: '16px' }}>
-              Punktacja: 10 pkt za aktywną pracę · 2 pkt za buffed · bonus za rangę · 👻 Ghost — ukryty
-            </p>
-            {lbLoading ? (
-              <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Ładowanie...</p>
-            ) : leaderboard.map((user, i) => {
+            <p style={{ color: '#52525b', fontSize: '0.75rem', marginBottom: '14px' }}>10 pkt/praca · 2 pkt/buffed · bonus za rangę · 👻 Ghost ukryty</p>
+            {lbLoading ? <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Ładowanie...</p> : leaderboard.map((user, i) => {
               const rInfo = RANKS[user.rank ?? 0] ?? RANKS[0]
               const isMe = user.id === currentUser?.id
               const isThis = user.id === profile?.id
               const medals = ['🥇', '🥈', '🥉']
               return (
-                <div key={user.id} onClick={() => navigate(`/profile/${user.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', marginBottom: '7px', borderRadius: '14px', background: isThis ? `${rInfo.color}10` : isMe ? 'rgba(249,115,22,0.06)' : 'rgba(255,255,255,0.03)', border: isThis ? `1px solid ${rInfo.color}35` : isMe ? '1px solid rgba(249,115,22,0.2)' : '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'all 0.15s' }}>
-                  <div style={{ width: '32px', textAlign: 'center', flexShrink: 0 }}>
-                    {i < 3 ? <span style={{ fontSize: '1.3rem' }}>{medals[i]}</span> : <span style={{ color: '#52525b', fontWeight: 700 }}>#{i + 1}</span>}
+                <div key={user.id} onClick={() => navigate(`/profile/${user.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', marginBottom: '6px', borderRadius: '12px', background: isThis ? `${rInfo.color}10` : isMe ? 'rgba(249,115,22,0.06)' : 'rgba(255,255,255,0.03)', border: isThis ? `1px solid ${rInfo.color}35` : isMe ? '1px solid rgba(249,115,22,0.2)' : '1px solid rgba(255,255,255,0.06)', cursor: 'pointer' }}>
+                  <div style={{ width: '28px', textAlign: 'center', flexShrink: 0 }}>
+                    {i < 3 ? <span style={{ fontSize: '1.2rem' }}>{medals[i]}</span> : <span style={{ color: '#52525b', fontWeight: 700, fontSize: '0.85rem' }}>#{i + 1}</span>}
                   </div>
-                  <Avatar profile={user} size={40} rankColor={rInfo.color} />
+                  <Avatar profile={user} size={36} rankColor={rInfo.color} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
-                      <span style={{ color: 'white', fontWeight: 700, fontSize: '0.92rem' }}>{user.username}</span>
-                      <span style={{ padding: '2px 7px', borderRadius: '9999px', fontSize: '0.67rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color }}>{rInfo.label}</span>
-                      {user.crews.map(crew => <span key={crew} style={{ padding: '2px 7px', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ color: 'white', fontWeight: 700, fontSize: '0.88rem' }}>{user.username}</span>
+                      <span style={{ padding: '1px 6px', borderRadius: '9999px', fontSize: '0.63rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color }}>{rInfo.label}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '3px' }}>
-                      <span style={{ color: '#52525b', fontSize: '0.7rem' }}>📍 {user.activeSpots}</span>
-                      {user.buffedSpots > 0 && <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>🪣 {user.buffedSpots}</span>}
-                    </div>
+                    <span style={{ color: '#52525b', fontSize: '0.68rem' }}>📍 {user.activeSpots}</span>
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <p style={{ color: i === 0 ? '#facc15' : i === 1 ? '#a1a1aa' : i === 2 ? '#cd7c2f' : '#52525b', fontWeight: 700, fontSize: '1.1rem', margin: 0 }}>{user.score}</p>
-                    <p style={{ color: '#3f3f46', fontSize: '0.67rem', margin: 0 }}>pkt</p>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ color: i === 0 ? '#facc15' : i === 1 ? '#a1a1aa' : i === 2 ? '#cd7c2f' : '#52525b', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{user.score}</p>
+                    <p style={{ color: '#3f3f46', fontSize: '0.63rem', margin: 0 }}>pkt</p>
                   </div>
                 </div>
               )
@@ -620,12 +486,7 @@ export default function ProfilePage() {
       </div>
 
       {selectedSpot && (
-        <SpotModal
-          spot={selectedSpot}
-          userId={currentUser?.id}
-          userRank={currentUserRank}
-          isAdmin={isAdmin}
-          onClose={() => setSelectedSpot(null)}
+        <SpotModal spot={selectedSpot} userId={currentUser?.id} userRank={currentUserRank} isAdmin={isAdmin} onClose={() => setSelectedSpot(null)}
           onDeleted={() => { setSelectedSpot(null); const id = paramUserId || currentUser?.id; if (id) fetchAll(id, currentUser?.id) }}
           onRefresh={() => { const id = paramUserId || currentUser?.id; if (id) fetchAll(id, currentUser?.id) }}
         />
