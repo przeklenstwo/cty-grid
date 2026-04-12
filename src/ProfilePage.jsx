@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import SpotModal from './SpotModal'
+import NuclearButton from './NuclearButton'
 
 const RANKS = {
   0: { label: 'Newbie',  color: '#71717a', icon: '👶' },
@@ -22,11 +23,9 @@ function Avatar({ profile, size = 64, rankColor = '#71717a', onClick }) {
     border: `2px solid ${rankColor}50`, flexShrink: 0,
     cursor: onClick ? 'pointer' : 'default',
   }
-
   if (profile?.avatar_url && !imgError) {
     return <img src={profile.avatar_url} alt="" onError={() => setImgError(true)} onClick={onClick} style={{ ...style, objectFit: 'cover', display: 'block' }} />
   }
-
   return (
     <div onClick={onClick} style={{
       ...style,
@@ -61,7 +60,6 @@ export default function ProfilePage() {
   const [showBuffed, setShowBuffed]   = useState(false)
   const [showPrivate, setShowPrivate] = useState(false)
 
-  // Edycja profilu
   const [editMode, setEditMode]           = useState(false)
   const [editUsername, setEditUsername]   = useState('')
   const [editDiscord, setEditDiscord]     = useState('')
@@ -69,18 +67,19 @@ export default function ProfilePage() {
   const [saving, setSaving]               = useState(false)
   const [saveError, setSaveError]         = useState('')
 
-  // Avatar
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [avatarFile, setAvatarFile]       = useState(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
-  // Zmiana hasła
-  const [showPwForm, setShowPwForm]         = useState(false)
-  const [newPw, setNewPw]                   = useState('')
-  const [confirmPw, setConfirmPw]           = useState('')
-  const [pwError, setPwError]               = useState('')
-  const [pwSuccess, setPwSuccess]           = useState(false)
-  const [changingPw, setChangingPw]         = useState(false)
+  const [showPwForm, setShowPwForm]   = useState(false)
+  const [newPw, setNewPw]             = useState('')
+  const [confirmPw, setConfirmPw]     = useState('')
+  const [pwError, setPwError]         = useState('')
+  const [pwSuccess, setPwSuccess]     = useState(false)
+  const [changingPw, setChangingPw]   = useState(false)
+
+  // Ghost toggle
+  const [togglingGhost, setTogglingGhost] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -118,21 +117,31 @@ export default function ProfilePage() {
   async function fetchLeaderboard() {
     setLbLoading(true)
     const [{ data: profiles }, { data: allSpots }] = await Promise.all([
-      supabase.from('profiles').select('id, username, rank, discord, avatar_url'),
+      supabase.from('profiles').select('id, username, rank, discord, avatar_url, is_ghost'),
       supabase.from('spots').select('user_id, status, crew_tags'),
     ])
     if (!profiles || !allSpots) { setLbLoading(false); return }
     const rankBonus = [0, 50, 150, 300]
-    const lb = profiles.map(p => {
-      const userSpots = allSpots.filter(s => s.user_id === p.id)
-      const active = userSpots.filter(s => s.status !== 'buffed')
-      const buffed = userSpots.filter(s => s.status === 'buffed')
-      const crews = [...new Set(userSpots.flatMap(s => s.crew_tags || []))]
-      const score = active.length * 10 + buffed.length * 2 + (rankBonus[p.rank ?? 0] || 0)
-      return { ...p, totalSpots: userSpots.length, activeSpots: active.length, buffedSpots: buffed.length, crews, score }
-    }).sort((a, b) => b.score - a.score)
+    const lb = profiles
+      .filter(p => !p.is_ghost) // ukryj ghost userów z rankingu
+      .map(p => {
+        const userSpots = allSpots.filter(s => s.user_id === p.id)
+        const active = userSpots.filter(s => s.status !== 'buffed')
+        const buffed = userSpots.filter(s => s.status === 'buffed')
+        const crews = [...new Set(userSpots.flatMap(s => s.crew_tags || []))]
+        const score = active.length * 10 + buffed.length * 2 + (rankBonus[p.rank ?? 0] || 0)
+        return { ...p, totalSpots: userSpots.length, activeSpots: active.length, buffedSpots: buffed.length, crews, score }
+      }).sort((a, b) => b.score - a.score)
     setLeaderboard(lb)
     setLbLoading(false)
+  }
+
+  async function toggleGhost() {
+    setTogglingGhost(true)
+    const newVal = !profile.is_ghost
+    await supabase.from('profiles').update({ is_ghost: newVal }).eq('id', profile.id)
+    setProfile(p => ({ ...p, is_ghost: newVal }))
+    setTogglingGhost(false)
   }
 
   async function handleAvatarSelect(e) {
@@ -147,16 +156,12 @@ export default function ProfilePage() {
     setUploadingAvatar(true)
     const ext = avatarFile.name.split('.').pop()
     const fileName = `avatar_${profile.id}_${Date.now()}.${ext}`
-
-    // Usuń stary avatar jeśli był
     if (profile.avatar_url) {
       const oldPath = profile.avatar_url.split('/avatars/')[1]
       if (oldPath) await supabase.storage.from('avatars').remove([oldPath])
     }
-
     const { error: uploadErr } = await supabase.storage.from('avatars').upload(fileName, avatarFile, { upsert: true })
     if (uploadErr) { setUploadingAvatar(false); return }
-
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
     await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', profile.id)
     setProfile(p => ({ ...p, avatar_url: urlData.publicUrl }))
@@ -242,7 +247,6 @@ export default function ProfilePage() {
   return (
     <div style={{ minHeight: '100vh', background: '#09090b', fontFamily: 'Space Grotesk, sans-serif' }}>
 
-      {/* NAVBAR */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>← Mapa</button>
         <h1 style={{ color: 'white', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>CTY-GRID</h1>
@@ -251,30 +255,30 @@ export default function ProfilePage() {
 
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 20px' }}>
 
-        {/* HEADER PROFILU */}
+        {/* PROFIL HEADER */}
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '28px', marginBottom: '24px' }}>
           {!editMode ? (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
-                {/* Avatar + info */}
                 <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
                   <div style={{ position: 'relative' }}>
                     <Avatar profile={profile} size={72} rankColor={rankInfo.color} />
                     {isOwnProfile && (
-                      <label style={{
-                        position: 'absolute', bottom: '-4px', right: '-4px',
-                        background: '#f97316', borderRadius: '50%',
-                        width: '22px', height: '22px', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', fontSize: '0.65rem', border: '2px solid #09090b',
-                      }}>
+                      <label style={{ position: 'absolute', bottom: '-4px', right: '-4px', background: '#f97316', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.65rem', border: '2px solid #09090b' }}>
                         📷
                         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarSelect} />
                       </label>
                     )}
                   </div>
                   <div>
-                    <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.5rem', letterSpacing: '-0.02em', margin: 0 }}>{profile.username}</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.5rem', letterSpacing: '-0.02em', margin: 0 }}>{profile.username}</h2>
+                      {profile.is_ghost && (
+                        <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: 'rgba(113,113,122,0.15)', color: '#71717a', border: '1px solid rgba(113,113,122,0.25)' }}>
+                          👻 Ghost
+                        </span>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '5px', flexWrap: 'wrap' }}>
                       <span style={{ padding: '3px 10px', borderRadius: '9999px', fontSize: '0.73rem', fontWeight: 700, background: `${rankInfo.color}18`, color: rankInfo.color, border: `1px solid ${rankInfo.color}40` }}>
                         {rankInfo.icon} {rankInfo.label}
@@ -284,43 +288,26 @@ export default function ProfilePage() {
                     {profile.bio && <p style={{ color: '#a1a1aa', fontSize: '0.86rem', marginTop: '10px', lineHeight: 1.6, maxWidth: '500px' }}>{profile.bio}</p>}
                   </div>
                 </div>
-
-                {/* Przyciski edycji */}
                 {isOwnProfile && (
-                  <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                    <button onClick={() => { setEditUsername(profile.username); setEditDiscord(profile.discord || ''); setEditBio(profile.bio || ''); setEditMode(true) }} style={{
-                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                      color: '#a1a1aa', padding: '7px 14px', borderRadius: '9px',
-                      cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif',
-                    }}>✏️ Edytuj</button>
-                  </div>
+                  <button onClick={() => { setEditUsername(profile.username); setEditDiscord(profile.discord || ''); setEditBio(profile.bio || ''); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', padding: '7px 14px', borderRadius: '9px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>✏️ Edytuj</button>
                 )}
               </div>
 
-              {/* Avatar preview */}
               {avatarPreview && (
                 <div style={{ marginTop: '16px', padding: '14px', borderRadius: '12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)', display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <img src={avatarPreview} alt="" style={{ width: '52px', height: '52px', borderRadius: '10px', objectFit: 'cover' }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ color: '#a1a1aa', fontSize: '0.82rem', margin: 0 }}>Nowe zdjęcie profilowe</p>
-                  </div>
-                  <button onClick={handleAvatarUpload} disabled={uploadingAvatar} style={{ padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
-                    {uploadingAvatar ? '...' : 'Zapisz'}
-                  </button>
+                  <p style={{ color: '#a1a1aa', fontSize: '0.82rem', margin: 0, flex: 1 }}>Nowe zdjęcie profilowe</p>
+                  <button onClick={handleAvatarUpload} disabled={uploadingAvatar} style={{ padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>{uploadingAvatar ? '...' : 'Zapisz'}</button>
                   <button onClick={() => { setAvatarFile(null); setAvatarPreview(null) }} style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: 'rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
                 </div>
               )}
 
-              {/* Crew tagi */}
               {allCrews.length > 0 && (
                 <div style={{ display: 'flex', gap: '6px', marginTop: '16px', flexWrap: 'wrap' }}>
-                  {allCrews.map(crew => (
-                    <span key={crew} style={{ padding: '4px 14px', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000', boxShadow: `0 0 10px ${crewMap[crew] || '#f97316'}40` }}>{crew}</span>
-                  ))}
+                  {allCrews.map(crew => <span key={crew} style={{ padding: '4px 14px', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000', boxShadow: `0 0 10px ${crewMap[crew] || '#f97316'}40` }}>{crew}</span>)}
                 </div>
               )}
 
-              {/* Statystyki */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '18px' }}>
                 {[
                   { label: 'Prace', value: spots.length, color: '#f97316' },
@@ -336,7 +323,6 @@ export default function ProfilePage() {
               </div>
             </div>
           ) : (
-            /* TRYB EDYCJI */
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
                 <Avatar profile={{ ...profile, avatar_url: avatarPreview || profile.avatar_url }} size={60} rankColor={rankInfo.color} />
@@ -348,9 +334,7 @@ export default function ProfilePage() {
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarSelect} />
                     </label>
                     {profile.avatar_url && (
-                      <button onClick={handleRemoveAvatar} style={{ padding: '4px 12px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.22)', fontFamily: 'Space Grotesk, sans-serif' }}>
-                        🗑 Usuń zdjęcie
-                      </button>
+                      <button onClick={handleRemoveAvatar} style={{ padding: '4px 12px', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.22)', fontFamily: 'Space Grotesk, sans-serif' }}>🗑 Usuń zdjęcie</button>
                     )}
                   </div>
                 </div>
@@ -360,7 +344,6 @@ export default function ProfilePage() {
                 <input style={inp} placeholder="Nazwa użytkownika" value={editUsername} onChange={e => setEditUsername(e.target.value)} />
                 <input style={inp} placeholder="Discord (opcjonalnie)" value={editDiscord} onChange={e => setEditDiscord(e.target.value)} />
                 <textarea style={{ ...inp, minHeight: '80px', resize: 'vertical' }} placeholder="Bio (opcjonalnie)" value={editBio} onChange={e => setEditBio(e.target.value)} />
-
                 {saveError && <p style={{ color: '#f87171', fontSize: '0.82rem' }}>{saveError}</p>}
 
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -373,7 +356,6 @@ export default function ProfilePage() {
                   <button onClick={() => setShowPwForm(s => !s)} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0, fontWeight: 600 }}>
                     🔑 {showPwForm ? 'Ukryj' : 'Zmień hasło'}
                   </button>
-
                   {showPwForm && (
                     <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <input style={inp} type="password" placeholder="Nowe hasło (min. 6 znaków)" value={newPw} onChange={e => setNewPw(e.target.value)} />
@@ -385,6 +367,38 @@ export default function ProfilePage() {
                       </button>
                     </div>
                   )}
+                </div>
+
+                {/* Tryb Ghost */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '10px', background: profile.is_ghost ? 'rgba(113,113,122,0.1)' : 'rgba(255,255,255,0.02)', border: profile.is_ghost ? '1px solid rgba(113,113,122,0.25)' : '1px solid rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <p style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem', margin: 0 }}>
+                        👻 Tryb Ghost {profile.is_ghost && <span style={{ color: '#71717a', fontSize: '0.75rem', fontWeight: 400 }}>— aktywny</span>}
+                      </p>
+                      <p style={{ color: '#52525b', fontSize: '0.73rem', marginTop: '2px', marginBottom: 0 }}>
+                        Ukrywa Cię z rankingu i leaderboardu
+                      </p>
+                    </div>
+                    <div onClick={togglingGhost ? undefined : toggleGhost} style={{
+                      width: '44px', height: '24px', borderRadius: '9999px',
+                      background: profile.is_ghost ? '#71717a' : '#27272a',
+                      cursor: togglingGhost ? 'not-allowed' : 'pointer',
+                      position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                    }}>
+                      <div style={{
+                        position: 'absolute', top: '3px',
+                        left: profile.is_ghost ? '23px' : '3px',
+                        width: '18px', height: '18px',
+                        borderRadius: '50%', background: 'white', transition: 'left 0.2s',
+                      }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nuklearny guzik */}
+                <div style={{ borderTop: '1px solid rgba(239,68,68,0.1)', paddingTop: '14px' }}>
+                  <NuclearButton userId={profile.id} username={profile.username} />
                 </div>
               </div>
             </div>
@@ -422,7 +436,6 @@ export default function ProfilePage() {
               {isOwnProfile && <button onClick={() => setShowPrivate(b => !b)} style={{ padding: '5px 14px', borderRadius: '9999px', border: 'none', cursor: 'pointer', background: showPrivate ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', color: showPrivate ? '#f97316' : '#52525b', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', outline: showPrivate ? '1px solid rgba(249,115,22,0.3)' : 'none' }}>🔒 Private</button>}
               <span style={{ color: '#3f3f46', fontSize: '0.72rem' }}>{filteredGallery.length} prac</span>
             </div>
-
             {filteredGallery.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: '#3f3f46' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🎨</div>
@@ -488,7 +501,7 @@ export default function ProfilePage() {
         {tab === 'leaderboard' && (
           <div>
             <p style={{ color: '#52525b', fontSize: '0.78rem', marginBottom: '16px' }}>
-              Punktacja: 10 pkt za aktywną pracę · 2 pkt za buffed · bonus za rangę
+              Punktacja: 10 pkt za aktywną pracę · 2 pkt za buffed · bonus za rangę · 👻 Ghost — ukryty
             </p>
             {lbLoading ? (
               <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Ładowanie...</p>
