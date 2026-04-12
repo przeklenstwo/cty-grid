@@ -1,10 +1,11 @@
 import SpotModal from './SpotModal'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap, useMapEvent } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import { useNavigate } from 'react-router-dom'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
+import 'leaflet.heat'
 import { supabase } from './supabaseClient'
 import Auth from './auth'
 import AddSpotModal from './AddSpotModal'
@@ -23,6 +24,15 @@ export const RANKS = {
   2: { label: 'Veteran', color: '#a78bfa', icon: '🎯' },
   3: { label: 'Legend',  color: '#f97316', icon: '👑' },
 }
+
+const DATE_FILTERS = [
+  { label: 'Wszystkie', days: null },
+  { label: '7 dni',     days: 7 },
+  { label: '30 dni',    days: 30 },
+  { label: '90 dni',    days: 90 },
+]
+
+const MAP_STORAGE_KEY = 'cty-grid-map-view'
 
 function makePin(color, buffed = false, highlight = false) {
   const c = buffed ? '#4a4a4a' : color
@@ -67,12 +77,73 @@ function MapClickHandler({ onMapClick }) {
   return null
 }
 
-// Komponent który leci do pierwszego wyniku wyszukiwania
 function FlyToResult({ spot }) {
   const map = useMap()
   useEffect(() => {
     if (spot) map.flyTo([spot.lat, spot.lng], 16, { duration: 0.8 })
   }, [spot])
+  return null
+}
+
+// Zapisuje pozycję mapy do localStorage przy każdym przesunięciu/zoomie
+function MapViewSaver() {
+  useMapEvent('moveend', (e) => {
+    const map = e.target
+    const center = map.getCenter()
+    const zoom = map.getZoom()
+    try {
+      localStorage.setItem(MAP_STORAGE_KEY, JSON.stringify({
+        lat: center.lat, lng: center.lng, zoom
+      }))
+    } catch {}
+  })
+  return null
+}
+
+// Heatmapa jako osobny komponent
+function HeatmapLayer({ spots }) {
+  const map = useMap()
+  const heatRef = useRef(null)
+
+  useEffect(() => {
+    if (!spots.length) return
+
+    const points = spots.map(s => [s.lat, s.lng, 0.8])
+
+    if (heatRef.current) {
+      map.removeLayer(heatRef.current)
+    }
+
+    heatRef.current = L.heatLayer(points, {
+      radius: 30,
+      blur: 20,
+      maxZoom: 17,
+      gradient: {
+        0.2: '#1e3a5f',
+        0.4: '#0ea5e9',
+        0.6: '#f97316',
+        0.8: '#ef4444',
+        1.0: '#ffffff',
+      },
+    }).addTo(map)
+
+    return () => {
+      if (heatRef.current) {
+        map.removeLayer(heatRef.current)
+        heatRef.current = null
+      }
+    }
+  }, [spots, map])
+
+  return null
+}
+
+// Wczytaj ostatnią pozycję mapy
+function getSavedView() {
+  try {
+    const saved = localStorage.getItem(MAP_STORAGE_KEY)
+    if (saved) return JSON.parse(saved)
+  } catch {}
   return null
 }
 
@@ -86,15 +157,20 @@ export default function App() {
   const [crewMap, setCrewMap]             = useState({})
   const [activeCrew, setActiveCrew]       = useState(null)
   const [showBuffed, setShowBuffed]       = useState(true)
+  const [dateFilter, setDateFilter]       = useState(null)
+  const [showHeatmap, setShowHeatmap]     = useState(false)
   const [pendingCoords, setPendingCoords] = useState(null)
   const [selectedSpot, setSelectedSpot]   = useState(null)
   const [showAdmin, setShowAdmin]         = useState(false)
   const [isAdmin, setIsAdmin]             = useState(false)
-
-  // Wyszukiwarka
   const [searchQuery, setSearchQuery]     = useState('')
   const [searchOpen, setSearchOpen]       = useState(false)
   const searchRef                         = useRef(null)
+
+  // Ostatnia pozycja mapy
+  const savedView = useMemo(() => getSavedView(), [])
+  const mapCenter = savedView ? [savedView.lat, savedView.lng] : [52.2297, 21.0122]
+  const mapZoom   = savedView ? savedView.zoom : 13
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -139,12 +215,13 @@ export default function App() {
     return [...set].sort()
   }, [spots])
 
-  // Filtrowanie z wyszukiwarką
   const filteredSpots = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
+    const cutoff = dateFilter ? new Date(Date.now() - dateFilter * 24 * 60 * 60 * 1000) : null
     return spots.filter(spot => {
       if (!showBuffed && spot.status === 'buffed') return false
       if (activeCrew && !(spot.crew_tags || []).includes(activeCrew)) return false
+      if (cutoff && new Date(spot.created_at) < cutoff) return false
       if (q) {
         const inTitle = spot.title?.toLowerCase().includes(q)
         const inDesc  = spot.description?.toLowerCase().includes(q)
@@ -153,15 +230,13 @@ export default function App() {
       }
       return true
     })
-  }, [spots, activeCrew, showBuffed, searchQuery])
+  }, [spots, activeCrew, showBuffed, searchQuery, dateFilter])
 
-  // Wyniki wyszukiwania do listy podpowiedzi
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return []
     return filteredSpots.slice(0, 6)
   }, [filteredSpots, searchQuery])
 
-  // Pierwszy wynik do FlyTo
   const flyTarget = useMemo(() => {
     if (!searchQuery.trim() || searchResults.length === 0) return null
     return searchResults[0]
@@ -194,7 +269,7 @@ export default function App() {
           CTY-GRID
         </h1>
 
-        {/* FILTRY + WYSZUKIWARKA */}
+        {/* FILTRY */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', overflowX: 'auto', flex: 1 }}>
           <button onClick={() => setActiveCrew(null)} style={{
             padding: '4px 12px', borderRadius: '9999px', border: 'none',
@@ -231,10 +306,45 @@ export default function App() {
             outline: showBuffed ? '1px solid rgba(113,113,122,0.28)' : 'none',
           }}>{showBuffed ? '🪣 Buffed: ON' : '🪣 Buffed: OFF'}</button>
 
+          {/* FILTR DAT */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <select
+              value={dateFilter ?? ''}
+              onChange={e => setDateFilter(e.target.value ? Number(e.target.value) : null)}
+              style={{
+                padding: '4px 24px 4px 10px', borderRadius: '9999px', border: 'none',
+                background: dateFilter ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)',
+                color: dateFilter ? '#38bdf8' : '#52525b',
+                fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer',
+                fontFamily: 'Space Grotesk, sans-serif', whiteSpace: 'nowrap',
+                outline: dateFilter ? '1px solid rgba(56,189,248,0.3)' : 'none',
+                appearance: 'none', WebkitAppearance: 'none',
+              }}
+            >
+              {DATE_FILTERS.map(f => (
+                <option key={f.label} value={f.days ?? ''} style={{ background: '#0c0c0e', color: 'white' }}>
+                  📅 {f.label}
+                </option>
+              ))}
+            </select>
+            <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: dateFilter ? '#38bdf8' : '#52525b', fontSize: '0.6rem', pointerEvents: 'none' }}>▼</span>
+          </div>
+
+          {/* HEATMAPA */}
+          <button onClick={() => setShowHeatmap(h => !h)} style={{
+            padding: '4px 12px', borderRadius: '9999px', border: 'none',
+            background: showHeatmap ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.04)',
+            color: showHeatmap ? '#f87171' : '#52525b',
+            fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer',
+            fontFamily: 'Space Grotesk, sans-serif', whiteSpace: 'nowrap',
+            outline: showHeatmap ? '1px solid rgba(239,68,68,0.3)' : 'none',
+            transition: 'all 0.15s',
+          }}>🌡️ Heat{showHeatmap ? ': ON' : ': OFF'}</button>
+
           {/* WYSZUKIWARKA */}
           <div style={{ position: 'relative', flexShrink: 0 }} ref={searchRef}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              {searchOpen ? (
+              {searchOpen && (
                 <input
                   autoFocus
                   value={searchQuery}
@@ -247,10 +357,10 @@ export default function App() {
                     background: 'rgba(249,115,22,0.07)',
                     color: 'white', fontSize: '0.72rem',
                     fontFamily: 'Space Grotesk, sans-serif', outline: 'none',
-                    width: '200px', transition: 'width 0.2s',
+                    width: '200px',
                   }}
                 />
-              ) : null}
+              )}
               <button
                 onClick={() => { setSearchOpen(s => !s); if (searchOpen) setSearchQuery('') }}
                 style={{
@@ -263,15 +373,13 @@ export default function App() {
               >🔍</button>
             </div>
 
-            {/* Dropdown z wynikami */}
             {searchOpen && searchQuery && searchResults.length > 0 && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 8px)', right: 0,
                 background: 'rgba(12,12,14,0.98)', backdropFilter: 'blur(16px)',
                 border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px',
                 width: '280px', zIndex: 2000,
-                boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-                overflow: 'hidden',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.6)', overflow: 'hidden',
               }}>
                 <p style={{ color: '#52525b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 14px 6px', margin: 0 }}>
                   {filteredSpots.length} wyników
@@ -280,35 +388,19 @@ export default function App() {
                   const firstCrew = spot.crew_tags?.[0]
                   const color = firstCrew ? (crewMap[firstCrew] || '#f97316') : '#f97316'
                   return (
-                    <div
-                      key={spot.id}
-                      onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }}
-                      style={{
-                        padding: '10px 14px', cursor: 'pointer',
-                        borderTop: '1px solid rgba(255,255,255,0.05)',
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                        transition: 'background 0.1s',
-                      }}
+                    <div key={spot.id} onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }} style={{
+                      padding: '10px 14px', cursor: 'pointer',
+                      borderTop: '1px solid rgba(255,255,255,0.05)',
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                    }}
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
-                      {/* Mini pin */}
-                      <div style={{
-                        width: '10px', height: '10px', borderRadius: '50%',
-                        background: spot.status === 'buffed' ? '#4a4a4a' : color,
-                        flexShrink: 0, opacity: spot.status === 'buffed' ? 0.5 : 1,
-                      }} />
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: spot.status === 'buffed' ? '#4a4a4a' : color, flexShrink: 0, opacity: spot.status === 'buffed' ? 0.5 : 1 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{
-                          color: spot.status === 'buffed' ? '#52525b' : 'white',
-                          fontWeight: 600, fontSize: '0.85rem', margin: 0,
-                          textDecoration: spot.status === 'buffed' ? 'line-through' : 'none',
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }}>{spot.title}</p>
+                        <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0, textDecoration: spot.status === 'buffed' ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.title}</p>
                         <div style={{ display: 'flex', gap: '4px', marginTop: '3px', flexWrap: 'wrap' }}>
-                          {(spot.crew_tags || []).map(crew => (
-                            <span key={crew} style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>
-                          ))}
+                          {(spot.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
                           {spot.status === 'buffed' && <span style={{ fontSize: '0.62rem', color: '#52525b' }}>🪣 buffed</span>}
                         </div>
                       </div>
@@ -318,7 +410,7 @@ export default function App() {
                 })}
                 {filteredSpots.length > 6 && (
                   <p style={{ color: '#52525b', fontSize: '0.72rem', padding: '8px 14px', margin: 0, textAlign: 'center' }}>
-                    +{filteredSpots.length - 6} więcej — zawęź zapytanie
+                    +{filteredSpots.length - 6} więcej
                   </p>
                 )}
               </div>
@@ -332,9 +424,7 @@ export default function App() {
                 width: '220px', zIndex: 2000, padding: '16px',
                 boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
               }}>
-                <p style={{ color: '#52525b', fontSize: '0.82rem', margin: 0, textAlign: 'center' }}>
-                  Brak wyników dla „{searchQuery}"
-                </p>
+                <p style={{ color: '#52525b', fontSize: '0.82rem', margin: 0, textAlign: 'center' }}>Brak wyników</p>
               </div>
             )}
           </div>
@@ -350,7 +440,6 @@ export default function App() {
             <span style={{ fontSize: '0.72rem' }}>{rankInfo.icon}</span>
             <span style={{ color: rankInfo.color, fontSize: '0.7rem', fontWeight: 700 }}>{rankInfo.label}</span>
           </div>
-
           <button onClick={() => navigate('/profile')} style={{
             background: 'none', border: 'none', color: '#a1a1aa',
             fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif',
@@ -361,7 +450,6 @@ export default function App() {
           >
             {profile?.username || user.email}
           </button>
-
           {isAdmin && (
             <button onClick={() => setShowAdmin(true)} style={{
               background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.32)',
@@ -388,13 +476,19 @@ export default function App() {
         fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif',
         pointerEvents: 'none', whiteSpace: 'nowrap',
       }}>
-        {searchQuery ? `🔍 ${filteredSpots.length} wyników` : '🎨 Kliknij na mapie żeby dodać pracę'}
+        {searchQuery
+          ? `🔍 ${filteredSpots.length} wyników`
+          : dateFilter
+          ? `📅 Ostatnie ${dateFilter} dni — ${filteredSpots.length} prac`
+          : showHeatmap
+          ? `🌡️ Heatmapa — ${spots.length} prac`
+          : '🎨 Kliknij na mapie żeby dodać pracę'}
       </div>
 
       {/* MAPA */}
       <MapContainer
-        center={[52.2297, 21.0122]}
-        zoom={13}
+        center={mapCenter}
+        zoom={mapZoom}
         style={{ width: '100%', height: '100%' }}
         zoomControl={false}
       >
@@ -407,31 +501,40 @@ export default function App() {
           setPendingCoords(coords)
         }} />
 
-        {/* Leć do pierwszego wyniku */}
+        {/* Zapisuje pozycję mapy */}
+        <MapViewSaver />
+
+        {/* FlyTo przy wyszukiwaniu */}
         {flyTarget && <FlyToResult spot={flyTarget} />}
 
-        <MarkerClusterGroup
-          iconCreateFunction={createClusterIcon}
-          showCoverageOnHover={false}
-          maxClusterRadius={60}
-          spiderfyOnMaxZoom={true}
-          disableClusteringAtZoom={17}
-        >
-          {filteredSpots.map(spot => {
-            const buffed = spot.status === 'buffed'
-            const firstCrew = spot.crew_tags?.[0]
-            const pinColor = firstCrew ? (crewMap[firstCrew] || '#f97316') : '#f97316'
-            const isSearchResult = !!searchQuery && filteredSpots.includes(spot)
-            return (
-              <Marker
-                key={spot.id}
-                position={[spot.lat, spot.lng]}
-                icon={makePin(pinColor, buffed, isSearchResult)}
-                eventHandlers={{ click: () => setSelectedSpot(spot) }}
-              />
-            )
-          })}
-        </MarkerClusterGroup>
+        {/* Heatmapa */}
+        {showHeatmap && <HeatmapLayer spots={spots} />}
+
+        {/* Pinezki — ukryte gdy heatmapa włączona */}
+        {!showHeatmap && (
+          <MarkerClusterGroup
+            iconCreateFunction={createClusterIcon}
+            showCoverageOnHover={false}
+            maxClusterRadius={60}
+            spiderfyOnMaxZoom={true}
+            disableClusteringAtZoom={17}
+          >
+            {filteredSpots.map(spot => {
+              const buffed = spot.status === 'buffed'
+              const firstCrew = spot.crew_tags?.[0]
+              const pinColor = firstCrew ? (crewMap[firstCrew] || '#f97316') : '#f97316'
+              const isSearchResult = !!searchQuery && filteredSpots.includes(spot)
+              return (
+                <Marker
+                  key={spot.id}
+                  position={[spot.lat, spot.lng]}
+                  icon={makePin(pinColor, buffed, isSearchResult)}
+                  eventHandlers={{ click: () => setSelectedSpot(spot) }}
+                />
+              )
+            })}
+          </MarkerClusterGroup>
+        )}
       </MapContainer>
 
       {/* MODALS */}
@@ -446,7 +549,6 @@ export default function App() {
           onRefresh={handleRefresh}
         />
       )}
-
       {pendingCoords && (
         <AddSpotModal
           coords={pendingCoords}
@@ -455,7 +557,6 @@ export default function App() {
           onAdded={() => { handleRefresh(); setPendingCoords(null) }}
         />
       )}
-
       {showAdmin && (
         <AdminPanel
           onClose={() => setShowAdmin(false)}
