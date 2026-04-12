@@ -19,10 +19,10 @@ L.Icon.Default.mergeOptions({
 })
 
 export const RANKS = {
-  0: { label: 'Newbie',  color: '#71717a', icon: '👶' },
-  1: { label: 'Writer',  color: '#38bdf8', icon: '✏️' },
-  2: { label: 'Veteran', color: '#a78bfa', icon: '🎯' },
-  3: { label: 'Legend',  color: '#f97316', icon: '👑' },
+  0: { label: 'Newbie',  color: '#71717a', icon: '👶', spotsNeeded: 0 },
+  1: { label: 'Writer',  color: '#38bdf8', icon: '✏️', spotsNeeded: 30 },
+  2: { label: 'Veteran', color: '#a78bfa', icon: '🎯', spotsNeeded: 100 },
+  3: { label: 'Legend',  color: '#f97316', icon: '👑', spotsNeeded: 230 },
 }
 
 const DATE_FILTERS = [
@@ -45,6 +45,15 @@ function makePin(color, buffed = false, highlight = false) {
     <circle cx="14" cy="14" r="4" fill="white" opacity="${buffed ? 0.4 : 0.9}"/>
   </svg>`
   return L.divIcon({ html: svg, className: '', iconSize: [28, 36], iconAnchor: [14, 36], popupAnchor: [0, -38] })
+}
+
+function makeMovingPin(vehicleType) {
+  const icons = { train: '🚂', metro: '🚇', tram: '🚋', bus: '🚌', other: '🚛' }
+  const icon = icons[vehicleType] || '🚂'
+  return L.divIcon({
+    html: `<div style="font-size:1.4rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.8));line-height:1">${icon}</div>`,
+    className: '', iconSize: [28, 28], iconAnchor: [14, 14],
+  })
 }
 
 function createClusterIcon(cluster) {
@@ -114,7 +123,7 @@ export default function App() {
   const [isAdmin, setIsAdmin]             = useState(false)
   const [searchQuery, setSearchQuery]     = useState('')
   const [searchOpen, setSearchOpen]       = useState(false)
-  const [menuOpen, setMenuOpen]           = useState(false) // mobile menu
+  const [menuOpen, setMenuOpen]           = useState(false)
   const searchRef                         = useRef(null)
 
   const savedView = useMemo(() => getSavedView(), [])
@@ -155,7 +164,12 @@ export default function App() {
     setSpots(data || [])
   }
 
-  async function handleRefresh() { await fetchSpots(); await fetchCrews() }
+  async function handleRefresh() {
+    await fetchSpots(); await fetchCrews()
+    // Odśwież profil po dodaniu spotu (ranga mogła się zmienić)
+    if (user) fetchProfile(user.id)
+  }
+
   async function handleLogout() { await supabase.auth.signOut(); setProfile(null); setIsAdmin(false) }
 
   const allCrews = useMemo(() => {
@@ -193,6 +207,10 @@ export default function App() {
 
   const userRank = profile?.rank ?? 0
   const rankInfo = RANKS[userRank] ?? RANKS[0]
+
+  // Ile prac do następnej rangi
+  const nextRank = RANKS[userRank + 1]
+  const userSpotCount = spots.filter(s => s.user_id === user?.id && s.status !== 'buffed').length
 
   if (loading) return (
     <div style={{ background: '#09090b', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -269,9 +287,13 @@ export default function App() {
 
         {/* PRAWA — desktop */}
         <div className="desktop-right" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '9999px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rankInfo.color}38` }}>
+          {/* Ranga z progress do następnej */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '9999px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rankInfo.color}38`, cursor: 'default', position: 'relative' }}
+            title={nextRank ? `${userSpotCount}/${nextRank.spotsNeeded} prac do ${nextRank.label}` : 'Maksymalna ranga!'}
+          >
             <span style={{ fontSize: '0.72rem' }}>{rankInfo.icon}</span>
             <span style={{ color: rankInfo.color, fontSize: '0.7rem', fontWeight: 700 }}>{rankInfo.label}</span>
+            {nextRank && <span style={{ color: '#3f3f46', fontSize: '0.65rem' }}>{userSpotCount}/{nextRank.spotsNeeded}</span>}
           </div>
           <button onClick={() => navigate('/feed')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>📰 Feed</button>
           <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#a1a1aa', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: '4px 8px', borderRadius: '8px' }}
@@ -281,41 +303,39 @@ export default function App() {
           <button onClick={handleLogout} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>Wyloguj</button>
         </div>
 
-        {/* MOBILE — prawa strona */}
+        {/* MOBILE */}
         <div className="mobile-right" style={{ display: 'none', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <button onClick={() => { setSearchOpen(s => !s); if (searchOpen) setSearchQuery('') }} style={{ background: searchOpen || searchQuery ? 'rgba(249,115,22,0.15)' : 'none', border: 'none', color: searchOpen || searchQuery ? '#f97316' : '#71717a', cursor: 'pointer', fontSize: '1.1rem', padding: '4px 8px', borderRadius: '8px' }}>🔍</button>
           <button onClick={() => setMenuOpen(m => !m)} style={{ background: menuOpen ? 'rgba(255,255,255,0.08)' : 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1.2rem', padding: '4px 8px', borderRadius: '8px' }}>☰</button>
         </div>
       </div>
 
-      {/* MOBILE SEARCH BAR */}
+      {/* MOBILE SEARCH */}
       <div className="mobile-search" style={{ display: 'none', position: 'absolute', top: '52px', left: 0, right: 0, zIndex: 999, padding: '8px 12px', background: 'rgba(9,9,11,0.97)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder="Szukaj spotu, crew..." style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }} />
         {searchQuery && searchResults.length > 0 && (
           <div style={{ marginTop: '6px', background: 'rgba(12,12,14,0.99)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
-            {searchResults.map(spot => {
-              const color = spot.crew_tags?.[0] ? (crewMap[spot.crew_tags[0]] || '#f97316') : '#f97316'
-              return (
-                <div key={spot.id} onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }} style={{ padding: '12px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, flexShrink: 0 }} />
-                  <span style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem' }}>{spot.title}</span>
-                </div>
-              )
-            })}
+            {searchResults.map(spot => (
+              <div key={spot.id} onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }} style={{ padding: '12px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
+                <span style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem' }}>{spot.title}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* MOBILE MENU DRAWER */}
+      {/* MOBILE MENU */}
       {menuOpen && (
         <div style={{ position: 'absolute', top: '52px', right: 0, zIndex: 1001, background: 'rgba(9,9,11,0.98)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '0 0 0 16px', padding: '16px', minWidth: '220px', fontFamily: 'Space Grotesk, sans-serif', boxShadow: '-4px 4px 30px rgba(0,0,0,0.6)' }}>
-          {/* User info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', paddingBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={{ fontSize: '0.85rem' }}>{rankInfo.icon}</span>
-            <span style={{ color: rankInfo.color, fontWeight: 700, fontSize: '0.85rem' }}>{profile?.username || user.email}</span>
+            <div>
+              <span style={{ color: rankInfo.color, fontWeight: 700, fontSize: '0.85rem' }}>{profile?.username || user.email}</span>
+              {nextRank && <p style={{ color: '#52525b', fontSize: '0.68rem', margin: '2px 0 0' }}>{userSpotCount}/{nextRank.spotsNeeded} do {nextRank.label}</p>}
+            </div>
           </div>
 
-          {/* Crew filtry */}
           <p style={{ color: '#52525b', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' }}>Filtry</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '10px' }}>
             <button onClick={() => { setActiveCrew(null); setMenuOpen(false) }} style={{ padding: '5px 12px', borderRadius: '9999px', border: 'none', background: activeCrew === null ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', color: activeCrew === null ? 'white' : '#52525b', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>Wszystkie</button>
@@ -325,16 +345,13 @@ export default function App() {
               return <button key={crew} onClick={() => { setActiveCrew(active ? null : crew); setMenuOpen(false) }} style={{ padding: '5px 12px', borderRadius: '9999px', border: 'none', background: active ? color : 'rgba(255,255,255,0.04)', color: active ? '#000' : color, fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>{crew}</button>
             })}
           </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
-            <button onClick={() => { setShowBuffed(b => !b) }} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: showBuffed ? 'rgba(113,113,122,0.15)' : 'rgba(255,255,255,0.04)', color: showBuffed ? '#a1a1aa' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{showBuffed ? '🪣 Buffed: ON' : '🪣 Buffed: OFF'}</button>
-            <button onClick={() => { setShowHeatmap(h => !h) }} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: showHeatmap ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)', color: showHeatmap ? '#f87171' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>🌡️ Heat{showHeatmap ? ': ON' : ': OFF'}</button>
-
+            <button onClick={() => setShowBuffed(b => !b)} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: showBuffed ? 'rgba(113,113,122,0.15)' : 'rgba(255,255,255,0.04)', color: showBuffed ? '#a1a1aa' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{showBuffed ? '🪣 Buffed: ON' : '🪣 Buffed: OFF'}</button>
+            <button onClick={() => setShowHeatmap(h => !h)} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: showHeatmap ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)', color: showHeatmap ? '#f87171' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>🌡️ Heat{showHeatmap ? ': ON' : ': OFF'}</button>
             <select value={dateFilter ?? ''} onChange={e => setDateFilter(e.target.value ? Number(e.target.value) : null)} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: dateFilter ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.04)', color: dateFilter ? '#38bdf8' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', appearance: 'none' }}>
               {DATE_FILTERS.map(f => <option key={f.label} value={f.days ?? ''} style={{ background: '#0c0c0e', color: 'white' }}>📅 {f.label}</option>)}
             </select>
           </div>
-
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <button onClick={() => { navigate('/feed'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>📰 Feed</button>
             <button onClick={() => { navigate('/profile'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>👤 Profil</button>
@@ -362,13 +379,19 @@ export default function App() {
               const buffed = spot.status === 'buffed'
               const firstCrew = spot.crew_tags?.[0]
               const pinColor = firstCrew ? (crewMap[firstCrew] || '#f97316') : '#f97316'
-              return <Marker key={spot.id} position={[spot.lat, spot.lng]} icon={makePin(pinColor, buffed, !!searchQuery)} eventHandlers={{ click: () => setSelectedSpot(spot) }} />
+              return (
+                <Marker
+                  key={spot.id}
+                  position={[spot.lat, spot.lng]}
+                  icon={spot.is_moving ? makeMovingPin(spot.vehicle_type) : makePin(pinColor, buffed, !!searchQuery)}
+                  eventHandlers={{ click: () => setSelectedSpot(spot) }}
+                />
+              )
             })}
           </MarkerClusterGroup>
         )}
       </MapContainer>
 
-      {/* CSS dla responsive */}
       <style>{`
         @media (max-width: 768px) {
           .desktop-filters { display: none !important; }
@@ -379,11 +402,7 @@ export default function App() {
           .mobile-search { display: none !important; }
         }
       `}</style>
-
-      {/* Jeśli searchOpen na mobile */}
-      {searchOpen && (
-        <style>{`.mobile-search { display: block !important; }`}</style>
-      )}
+      {searchOpen && <style>{`.mobile-search { display: block !important; }`}</style>}
 
       {selectedSpot && <SpotModal spot={selectedSpot} userId={user.id} userRank={userRank} isAdmin={isAdmin} onClose={() => setSelectedSpot(null)} onDeleted={() => { handleRefresh(); setSelectedSpot(null) }} onRefresh={handleRefresh} />}
       {pendingCoords && <AddSpotModal coords={pendingCoords} userId={user.id} onClose={() => setPendingCoords(null)} onAdded={() => { handleRefresh(); setPendingCoords(null) }} />}
