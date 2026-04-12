@@ -12,6 +12,7 @@
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",
     "@supabase/supabase-js": "^2.103.0",
+    "@vercel/analytics": "^2.0.1",
     "browser-image-compression": "^2.0.2",
     "leaflet": "^1.9.4",
     "leaflet.heat": "^0.2.0",
