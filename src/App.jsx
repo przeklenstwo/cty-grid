@@ -1,6 +1,7 @@
 import SpotModal from './SpotModal'
 import { useState, useEffect, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 import { useNavigate } from 'react-router-dom'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -35,6 +36,28 @@ function makePin(color, buffed = false) {
   return L.divIcon({
     html: svg, className: '',
     iconSize: [28, 36], iconAnchor: [14, 36], popupAnchor: [0, -38],
+  })
+}
+
+// Custom cluster icon — ciemny styl pasujący do mapy
+function createClusterIcon(cluster) {
+  const count = cluster.getChildCount()
+  const size = count < 10 ? 36 : count < 50 ? 42 : 48
+  return L.divIcon({
+    html: `<div style="
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:rgba(249,115,22,0.85);
+      backdrop-filter:blur(4px);
+      border:2px solid rgba(255,255,255,0.25);
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Space Grotesk',sans-serif;
+      font-weight:700;font-size:${count < 10 ? '0.85' : '0.78'}rem;
+      color:white;
+      box-shadow:0 4px 14px rgba(249,115,22,0.4);
+    ">${count}</div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   })
 }
 
@@ -204,12 +227,10 @@ export default function App() {
             <span style={{ color: rankInfo.color, fontSize: '0.7rem', fontWeight: 700 }}>{rankInfo.label}</span>
           </div>
 
-          {/* Klikalny username → profil */}
           <button onClick={() => navigate('/profile')} style={{
             background: 'none', border: 'none', color: '#a1a1aa',
             fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif',
-            padding: '4px 8px', borderRadius: '8px',
-            transition: 'color 0.15s',
+            padding: '4px 8px', borderRadius: '8px', transition: 'color 0.15s',
           }}
             onMouseEnter={e => e.target.style.color = 'white'}
             onMouseLeave={e => e.target.style.color = '#a1a1aa'}
@@ -263,19 +284,27 @@ export default function App() {
           setPendingCoords(coords)
         }} />
 
-        {filteredSpots.map(spot => {
-          const buffed = spot.status === 'buffed'
-          const firstCrew = spot.crew_tags?.[0]
-          const pinColor = firstCrew ? (crewMap[firstCrew] || '#f97316') : '#f97316'
-          return (
-            <Marker
-              key={spot.id}
-              position={[spot.lat, spot.lng]}
-              icon={makePin(pinColor, buffed)}
-              eventHandlers={{ click: () => setSelectedSpot(spot) }}
-            />
-          )
-        })}
+        <MarkerClusterGroup
+          iconCreateFunction={createClusterIcon}
+          showCoverageOnHover={false}
+          maxClusterRadius={60}
+          spiderfyOnMaxZoom={true}
+          disableClusteringAtZoom={17}
+        >
+          {filteredSpots.map(spot => {
+            const buffed = spot.status === 'buffed'
+            const firstCrew = spot.crew_tags?.[0]
+            const pinColor = firstCrew ? (crewMap[firstCrew] || '#f97316') : '#f97316'
+            return (
+              <Marker
+                key={spot.id}
+                position={[spot.lat, spot.lng]}
+                icon={makePin(pinColor, buffed)}
+                eventHandlers={{ click: () => setSelectedSpot(spot) }}
+              />
+            )
+          })}
+        </MarkerClusterGroup>
       </MapContainer>
 
       {/* MODALS */}
