@@ -440,6 +440,11 @@ export default function App() {
             <span style={{ fontSize: '0.72rem' }}>{rankInfo.icon}</span>
             <span style={{ color: rankInfo.color, fontSize: '0.7rem', fontWeight: 700 }}>{rankInfo.label}</span>
           </div>
+                    <button onClick={() => navigate('/feed')} style={{
+            background: 'none', border: '1px solid rgba(255,255,255,0.07)',
+            color: '#71717a', padding: '5px 11px', borderRadius: '8px',
+            cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
+          }}>📰 Feed</button>
           <button onClick={() => navigate('/profile')} style={{
             background: 'none', border: 'none', color: '#a1a1aa',
             fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif',

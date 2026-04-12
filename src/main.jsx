@@ -5,6 +5,8 @@ import './index.css'
 import App from './App.jsx'
 import ProfilePage from './ProfilePage.jsx'
 import ResetPasswordPage from './ResetPasswordPage.jsx'
+import InvitePage from './InvitePage.jsx'
+import FeedPage from './FeedPage.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -14,6 +16,8 @@ createRoot(document.getElementById('root')).render(
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/profile/:userId" element={<ProfilePage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/invite/:code" element={<InvitePage />} />
+        <Route path="/feed" element={<FeedPage />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

@@ -39,6 +39,10 @@ function Avatar({ profile, size = 64, rankColor = '#71717a', onClick }) {
   )
 }
 
+function generateCode() {
+  return Math.random().toString(36).slice(2, 10).toUpperCase()
+}
+
 export default function ProfilePage() {
   const { userId: paramUserId } = useParams()
   const navigate = useNavigate()
@@ -78,8 +82,18 @@ export default function ProfilePage() {
   const [pwSuccess, setPwSuccess]     = useState(false)
   const [changingPw, setChangingPw]   = useState(false)
 
-  // Ghost toggle
   const [togglingGhost, setTogglingGhost] = useState(false)
+
+  // Follow
+  const [isFollowing, setIsFollowing]     = useState(false)
+  const [followersCount, setFollowersCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
+  const [togglingFollow, setTogglingFollow] = useState(false)
+
+  // Zaproszenia
+  const [inviteLink, setInviteLink]       = useState('')
+  const [generatingInvite, setGeneratingInvite] = useState(false)
+  const [inviteCopied, setInviteCopied]   = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -111,6 +125,19 @@ export default function ProfilePage() {
     if (cr.data) { const map = {}; cr.data.forEach(c => { map[c.name] = c.color }); setCrewMap(map) }
     setIsAdmin(!!adm.data)
     setCurrentUserRank(curProf.data?.rank ?? 0)
+
+    // Follow stats
+    const [followers, following, myFollow] = await Promise.all([
+      supabase.from('follows').select('id', { count: 'exact' }).eq('following_id', userId),
+      supabase.from('follows').select('id', { count: 'exact' }).eq('follower_id', userId),
+      currentUserId && currentUserId !== userId
+        ? supabase.from('follows').select('id').eq('follower_id', currentUserId).eq('following_id', userId).single()
+        : Promise.resolve({ data: null }),
+    ])
+    setFollowersCount(followers.count || 0)
+    setFollowingCount(following.count || 0)
+    setIsFollowing(!!myFollow.data)
+
     setLoading(false)
   }
 
@@ -123,7 +150,7 @@ export default function ProfilePage() {
     if (!profiles || !allSpots) { setLbLoading(false); return }
     const rankBonus = [0, 50, 150, 300]
     const lb = profiles
-      .filter(p => !p.is_ghost) // ukryj ghost userów z rankingu
+      .filter(p => !p.is_ghost)
       .map(p => {
         const userSpots = allSpots.filter(s => s.user_id === p.id)
         const active = userSpots.filter(s => s.status !== 'buffed')
@@ -134,6 +161,37 @@ export default function ProfilePage() {
       }).sort((a, b) => b.score - a.score)
     setLeaderboard(lb)
     setLbLoading(false)
+  }
+
+  async function toggleFollow() {
+    if (!currentUser || !profile) return
+    setTogglingFollow(true)
+    if (isFollowing) {
+      await supabase.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', profile.id)
+      setIsFollowing(false)
+      setFollowersCount(c => c - 1)
+    } else {
+      await supabase.from('follows').insert({ follower_id: currentUser.id, following_id: profile.id })
+      setIsFollowing(true)
+      setFollowersCount(c => c + 1)
+    }
+    setTogglingFollow(false)
+  }
+
+  async function generateInvite() {
+    if (!currentUser) return
+    setGeneratingInvite(true)
+    const code = generateCode()
+    await supabase.from('invites').insert({ code, created_by: currentUser.id })
+    const link = `${window.location.origin}/invite/${code}`
+    setInviteLink(link)
+    setGeneratingInvite(false)
+  }
+
+  async function copyInvite() {
+    await navigator.clipboard.writeText(inviteLink)
+    setInviteCopied(true)
+    setTimeout(() => setInviteCopied(false), 2500)
   }
 
   async function toggleGhost() {
@@ -250,7 +308,7 @@ export default function ProfilePage() {
       <div style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>← Mapa</button>
         <h1 style={{ color: 'white', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>CTY-GRID</h1>
-        <div style={{ width: '60px' }} />
+        <button onClick={() => navigate('/feed')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>📰 Feed</button>
       </div>
 
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 20px' }}>
@@ -273,11 +331,7 @@ export default function ProfilePage() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.5rem', letterSpacing: '-0.02em', margin: 0 }}>{profile.username}</h2>
-                      {profile.is_ghost && (
-                        <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: 'rgba(113,113,122,0.15)', color: '#71717a', border: '1px solid rgba(113,113,122,0.25)' }}>
-                          👻 Ghost
-                        </span>
-                      )}
+                      {profile.is_ghost && <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: 'rgba(113,113,122,0.15)', color: '#71717a', border: '1px solid rgba(113,113,122,0.25)' }}>👻 Ghost</span>}
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '5px', flexWrap: 'wrap' }}>
                       <span style={{ padding: '3px 10px', borderRadius: '9999px', fontSize: '0.73rem', fontWeight: 700, background: `${rankInfo.color}18`, color: rankInfo.color, border: `1px solid ${rankInfo.color}40` }}>
@@ -286,11 +340,33 @@ export default function ProfilePage() {
                       {profile.discord && <span style={{ color: '#71717a', fontSize: '0.78rem' }}>🎮 {profile.discord}</span>}
                     </div>
                     {profile.bio && <p style={{ color: '#a1a1aa', fontSize: '0.86rem', marginTop: '10px', lineHeight: 1.6, maxWidth: '500px' }}>{profile.bio}</p>}
+
+                    {/* Follow stats */}
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
+                      <span style={{ color: '#71717a', fontSize: '0.78rem' }}><strong style={{ color: 'white' }}>{followersCount}</strong> obserwujących</span>
+                      <span style={{ color: '#71717a', fontSize: '0.78rem' }}><strong style={{ color: 'white' }}>{followingCount}</strong> obserwuje</span>
+                    </div>
                   </div>
                 </div>
-                {isOwnProfile && (
-                  <button onClick={() => { setEditUsername(profile.username); setEditDiscord(profile.discord || ''); setEditBio(profile.bio || ''); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', padding: '7px 14px', borderRadius: '9px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>✏️ Edytuj</button>
-                )}
+
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                  {/* Przycisk Follow — tylko dla cudzych profili */}
+                  {!isOwnProfile && currentUser && (
+                    <button onClick={toggleFollow} disabled={togglingFollow} style={{
+                      padding: '7px 16px', borderRadius: '9px', border: 'none',
+                      background: isFollowing ? 'rgba(255,255,255,0.08)' : '#f97316',
+                      color: isFollowing ? '#71717a' : 'white',
+                      fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
+                      fontFamily: 'Space Grotesk, sans-serif', transition: 'all 0.15s',
+                      opacity: togglingFollow ? 0.6 : 1,
+                    }}>
+                      {isFollowing ? 'Obserwujesz' : '+ Obserwuj'}
+                    </button>
+                  )}
+                  {isOwnProfile && (
+                    <button onClick={() => { setEditUsername(profile.username); setEditDiscord(profile.discord || ''); setEditBio(profile.bio || ''); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', padding: '7px 14px', borderRadius: '9px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>✏️ Edytuj</button>
+                  )}
+                </div>
               </div>
 
               {avatarPreview && (
@@ -369,6 +445,23 @@ export default function ProfilePage() {
                   )}
                 </div>
 
+                {/* Generator zaproszeń */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '14px' }}>
+                  <p style={{ color: '#71717a', fontSize: '0.82rem', fontWeight: 600, marginBottom: '8px' }}>🔗 Zaproś znajomego</p>
+                  {!inviteLink ? (
+                    <button onClick={generateInvite} disabled={generatingInvite} style={{ padding: '8px 16px', borderRadius: '9px', border: 'none', background: 'rgba(249,115,22,0.12)', color: '#f97316', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', outline: '1px solid rgba(249,115,22,0.25)', opacity: generatingInvite ? 0.6 : 1 }}>
+                      {generatingInvite ? '...' : '🔗 Generuj link zaproszenia'}
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <input readOnly value={inviteLink} style={{ ...inp, fontSize: '0.75rem', color: '#a1a1aa' }} />
+                      <button onClick={copyInvite} style={{ padding: '10px 14px', borderRadius: '9px', border: 'none', background: inviteCopied ? 'rgba(34,197,94,0.15)' : 'rgba(249,115,22,0.12)', color: inviteCopied ? '#22c55e' : '#f97316', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0, outline: '1px solid rgba(249,115,22,0.25)', whiteSpace: 'nowrap' }}>
+                        {inviteCopied ? '✅ Skopiowano' : '📋 Kopiuj'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Tryb Ghost */}
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '10px', background: profile.is_ghost ? 'rgba(113,113,122,0.1)' : 'rgba(255,255,255,0.02)', border: profile.is_ghost ? '1px solid rgba(113,113,122,0.25)' : '1px solid rgba(255,255,255,0.06)' }}>
@@ -376,22 +469,10 @@ export default function ProfilePage() {
                       <p style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem', margin: 0 }}>
                         👻 Tryb Ghost {profile.is_ghost && <span style={{ color: '#71717a', fontSize: '0.75rem', fontWeight: 400 }}>— aktywny</span>}
                       </p>
-                      <p style={{ color: '#52525b', fontSize: '0.73rem', marginTop: '2px', marginBottom: 0 }}>
-                        Ukrywa Cię z rankingu i leaderboardu
-                      </p>
+                      <p style={{ color: '#52525b', fontSize: '0.73rem', marginTop: '2px', marginBottom: 0 }}>Ukrywa Cię z rankingu i leaderboardu</p>
                     </div>
-                    <div onClick={togglingGhost ? undefined : toggleGhost} style={{
-                      width: '44px', height: '24px', borderRadius: '9999px',
-                      background: profile.is_ghost ? '#71717a' : '#27272a',
-                      cursor: togglingGhost ? 'not-allowed' : 'pointer',
-                      position: 'relative', transition: 'background 0.2s', flexShrink: 0,
-                    }}>
-                      <div style={{
-                        position: 'absolute', top: '3px',
-                        left: profile.is_ghost ? '23px' : '3px',
-                        width: '18px', height: '18px',
-                        borderRadius: '50%', background: 'white', transition: 'left 0.2s',
-                      }} />
+                    <div onClick={togglingGhost ? undefined : toggleGhost} style={{ width: '44px', height: '24px', borderRadius: '9999px', background: profile.is_ghost ? '#71717a' : '#27272a', cursor: togglingGhost ? 'not-allowed' : 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: '3px', left: profile.is_ghost ? '23px' : '3px', width: '18px', height: '18px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
                     </div>
                   </div>
                 </div>
