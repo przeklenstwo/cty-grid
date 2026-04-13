@@ -119,6 +119,7 @@ export default function App() {
   const [dateFilter, setDateFilter]       = useState(null)
   const [showHeatmap, setShowHeatmap]     = useState(false)
   const [pendingCoords, setPendingCoords] = useState(null)
+  const [pendingPin, setPendingPin] = useState(null)
   const [selectedSpot, setSelectedSpot]   = useState(null)
   const [showAdmin, setShowAdmin]         = useState(false)
   const [isAdmin, setIsAdmin]             = useState(false)
@@ -373,6 +374,12 @@ export default function App() {
             })}
           </MarkerClusterGroup>
         )}
+        {pendingPin && (
+  <Marker
+    position={[pendingPin.lat, pendingPin.lng]}
+    icon={makePin('#22c55e')}
+  />
+)}
       </MapContainer>
 
       <style>{`
