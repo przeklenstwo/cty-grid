@@ -15,14 +15,13 @@ const COLOR_PALETTE = [
 ]
 
 export default function AdminPanel({ onClose, onRefresh }) {
-  const [tab, setTab]         = useState('comments')
+  const [tab, setTab]           = useState('comments')
   const [comments, setComments] = useState([])
-  const [spots, setSpots]     = useState([])
-  const [users, setUsers]     = useState([])
-  const [crews, setCrews]     = useState([])
-  const [loading, setLoading] = useState(true)
+  const [spots, setSpots]       = useState([])
+  const [users, setUsers]       = useState([])
+  const [crews, setCrews]       = useState([])
+  const [loading, setLoading]   = useState(true)
 
-  // Nowy crew form
   const [newCrewName, setNewCrewName]   = useState('')
   const [newCrewColor, setNewCrewColor] = useState('#f97316')
   const [crewError, setCrewError]       = useState('')
@@ -66,6 +65,11 @@ export default function AdminPanel({ onClose, onRefresh }) {
 
   async function setUserRank(userId, rank) {
     await supabase.from('profiles').update({ rank }).eq('id', userId)
+    fetchAll()
+  }
+
+  async function toggleBan(userId, isBanned) {
+    await supabase.from('profiles').update({ is_banned: !isBanned }).eq('id', userId)
     fetchAll()
   }
 
@@ -235,7 +239,6 @@ export default function AdminPanel({ onClose, onRefresh }) {
               ))
           ) : tab === 'crews' ? (
             <div>
-              {/* Dodaj nowy crew */}
               <div style={{
                 ...card, marginBottom: '16px',
                 background: 'rgba(249,115,22,0.04)',
@@ -256,71 +259,47 @@ export default function AdminPanel({ onClose, onRefresh }) {
                       fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none',
                     }}
                   />
-                  <button
-                    onClick={addCrew}
-                    style={{
-                      padding: '9px 18px', borderRadius: '9px', border: 'none',
-                      background: '#f97316', color: 'white', fontWeight: 700,
-                      fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif',
-                    }}
-                  >Dodaj</button>
+                  <button onClick={addCrew} style={{
+                    padding: '9px 18px', borderRadius: '9px', border: 'none',
+                    background: '#f97316', color: 'white', fontWeight: 700,
+                    fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif',
+                  }}>Dodaj</button>
                 </div>
-
-                {/* Paleta kolorów */}
                 <div style={{ marginTop: '10px' }}>
                   <p style={{ color: '#52525b', fontSize: '0.72rem', marginBottom: '6px' }}>Wybierz kolor:</p>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {COLOR_PALETTE.map(c => (
-                      <div
-                        key={c}
-                        onClick={() => setNewCrewColor(c)}
-                        style={{
-                          width: '24px', height: '24px', borderRadius: '6px',
-                          background: c, cursor: 'pointer',
-                          outline: newCrewColor === c ? '2px solid white' : '2px solid transparent',
-                          outlineOffset: '2px', transition: 'all 0.1s',
-                        }}
-                      />
+                      <div key={c} onClick={() => setNewCrewColor(c)} style={{
+                        width: '24px', height: '24px', borderRadius: '6px',
+                        background: c, cursor: 'pointer',
+                        outline: newCrewColor === c ? '2px solid white' : '2px solid transparent',
+                        outlineOffset: '2px', transition: 'all 0.1s',
+                      }} />
                     ))}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                     <span style={{ color: '#52525b', fontSize: '0.72rem' }}>Podgląd:</span>
-                    <span style={{
-                      padding: '3px 12px', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 700,
-                      background: newCrewColor, color: '#000',
-                    }}>{newCrewName || 'CREW'}</span>
+                    <span style={{ padding: '3px 12px', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 700, background: newCrewColor, color: '#000' }}>{newCrewName || 'CREW'}</span>
                   </div>
                 </div>
                 {crewError && <p style={{ color: '#f87171', fontSize: '0.78rem', marginTop: '6px' }}>{crewError}</p>}
               </div>
 
-              {/* Lista crew */}
               {crews.length === 0
                 ? <p style={{ color: '#52525b', textAlign: 'center', padding: '20px' }}>Brak crew</p>
                 : crews.map(crew => (
                   <div key={crew.id} style={{ ...card, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {/* Podgląd tagu */}
-                    <span style={{
-                      padding: '4px 14px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 700,
-                      background: crew.color, color: '#000', flexShrink: 0,
-                    }}>{crew.name}</span>
-
-                    {/* Paleta edycji koloru */}
+                    <span style={{ padding: '4px 14px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 700, background: crew.color, color: '#000', flexShrink: 0 }}>{crew.name}</span>
                     <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', flex: 1 }}>
                       {COLOR_PALETTE.map(c => (
-                        <div
-                          key={c}
-                          onClick={() => updateCrewColor(crew.id, c)}
-                          style={{
-                            width: '20px', height: '20px', borderRadius: '5px',
-                            background: c, cursor: 'pointer',
-                            outline: crew.color === c ? '2px solid white' : '2px solid transparent',
-                            outlineOffset: '2px', transition: 'all 0.1s',
-                          }}
-                        />
+                        <div key={c} onClick={() => updateCrewColor(crew.id, c)} style={{
+                          width: '20px', height: '20px', borderRadius: '5px',
+                          background: c, cursor: 'pointer',
+                          outline: crew.color === c ? '2px solid white' : '2px solid transparent',
+                          outlineOffset: '2px', transition: 'all 0.1s',
+                        }} />
                       ))}
                     </div>
-
                     <button onClick={() => deleteCrew(crew.id)} style={{
                       padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer',
                       background: 'rgba(239,68,68,0.1)', color: '#ef4444',
@@ -337,19 +316,27 @@ export default function AdminPanel({ onClose, onRefresh }) {
               : users.map(u => {
                 const rank = u.rank ?? 0
                 const rInfo = RANKS[rank] ?? RANKS[0]
+                const isBanned = u.is_banned === true
                 return (
-                  <div key={u.id} style={card}>
+                  <div key={u.id} style={{
+                    ...card,
+                    border: isBanned ? '1px solid rgba(239,68,68,0.25)' : card.border,
+                    background: isBanned ? 'rgba(239,68,68,0.04)' : card.background,
+                  }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <div>
-                        <span style={{ color: 'white', fontWeight: 600, fontSize: '0.92rem' }}>{u.username}</span>
-                        {u.discord && <span style={{ color: '#71717a', fontSize: '0.75rem', marginLeft: '8px' }}>🎮 {u.discord}</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: isBanned ? '#71717a' : 'white', fontWeight: 600, fontSize: '0.92rem', textDecoration: isBanned ? 'line-through' : 'none' }}>{u.username}</span>
+                        {isBanned && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>ZBANOWANY</span>}
+                        {u.discord && <span style={{ color: '#71717a', fontSize: '0.75rem' }}>🎮 {u.discord}</span>}
                       </div>
                       <span style={{
                         padding: '3px 10px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700,
                         background: `${rInfo.color}18`, color: rInfo.color, border: `1px solid ${rInfo.color}40`,
                       }}>{rInfo.icon} {rInfo.label}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+
+                    {/* Rangi */}
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
                       {Object.entries(RANKS).map(([r, info]) => (
                         <button key={r} onClick={() => setUserRank(u.id, Number(r))} style={{
                           padding: '5px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer',
@@ -360,6 +347,17 @@ export default function AdminPanel({ onClose, onRefresh }) {
                         }}>{info.icon} {info.label}</button>
                       ))}
                     </div>
+
+                    {/* Ban */}
+                    <button onClick={() => toggleBan(u.id, isBanned)} style={{
+                      padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                      fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
+                      background: isBanned ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)',
+                      color: isBanned ? '#22c55e' : '#ef4444',
+                      outline: isBanned ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)',
+                    }}>
+                      {isBanned ? '✓ Odbanuj' : '🚫 Zbanuj'}
+                    </button>
                   </div>
                 )
               })

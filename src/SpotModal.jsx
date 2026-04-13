@@ -28,7 +28,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
   const [author, setAuthor]             = useState(null)
   const [crewMap, setCrewMap]           = useState({})
   const [currentUserProfile, setCurrentUserProfile] = useState(null)
-  const [mobileTab, setMobileTab]       = useState('info') // info | comments
+  const [mobileTab, setMobileTab]       = useState('info')
 
   const [newComment, setNewComment]     = useState('')
   const [commentType, setCommentType]   = useState('normal')
@@ -188,37 +188,150 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
 
   const availableTypes = COMMENT_TYPES.filter(t => userRank >= t.minRank || isAdmin)
 
+  // Panel informacyjny — wspólny dla mobile info tab i desktop
+  function InfoPanel() {
+    return (
+      <div style={{ padding: '16px 20px 12px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+          <h2 style={{ color: isBuffed ? '#52525b' : 'white', fontWeight: 700, fontSize: '1.2rem', letterSpacing: '-0.02em', margin: 0, flex: 1, textDecoration: isBuffed ? 'line-through' : 'none' }}>{spot.title}</h2>
+          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+            {canDelete && !confirmDelete && <button onClick={() => setConfirmDelete(true)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>🗑</button>}
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#71717a', cursor: 'pointer', borderRadius: '8px', width: '30px', height: '30px', fontSize: '0.9rem' }}>✕</button>
+          </div>
+        </div>
+
+        {author && (
+          <button onClick={() => goToProfile(author.id)} style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
+            <span>{RANKS[author.rank ?? 0]?.icon}</span>
+            <span style={{ color: rankColors[author.rank ?? 0], fontWeight: 700, fontSize: '0.82rem' }}>{author.username}</span>
+            <span style={{ color: '#3f3f46', fontSize: '0.68rem', marginLeft: 'auto' }}>→</span>
+          </button>
+        )}
+
+        <div style={{ display: 'flex', gap: '6px', marginTop: '7px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {isBuffed && <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: 'rgba(113,113,122,0.15)', color: '#71717a' }}>🪣 BUFFED</span>}
+          {(spot.crew_tags || []).map(crew => <span key={crew} style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
+        </div>
+
+        {spot.description && <p style={{ color: '#a1a1aa', fontSize: '0.82rem', lineHeight: 1.5, marginTop: '7px', marginBottom: 0 }}>{spot.description}</p>}
+
+        {/* REAKCJE */}
+        <div style={{ display: 'flex', gap: '5px', marginTop: '10px', flexWrap: 'wrap' }}>
+          {REACTION_EMOJIS.map(emoji => {
+            const count = (reactions[emoji] || []).length
+            const mine = (reactions[emoji] || []).some(r => r.user_id === userId)
+            return (
+              <button key={emoji} onClick={() => toggleReaction(emoji)} style={{ padding: '3px 9px', borderRadius: '9999px', border: 'none', background: mine ? 'rgba(249,115,22,0.2)' : count > 0 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px', outline: mine ? '1px solid rgba(249,115,22,0.4)' : 'none', transition: 'all 0.15s', transform: mine ? 'scale(1.05)' : 'scale(1)' }}>
+                <span>{emoji}</span>
+                {count > 0 && <span style={{ color: mine ? '#f97316' : '#71717a', fontSize: '0.68rem', fontWeight: 700 }}>{count}</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Buff akcje */}
+        <div style={{ marginTop: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {isAdmin && (isBuffed
+            ? <button onClick={handleAdminUnbuff} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>✓ Odznacz buff</button>
+            : <button onClick={handleAdminBuff} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.1)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>🪣 Oznacz BUFFED</button>
+          )}
+          {!isAdmin && !isBuffed && !buffSent && !confirmBuff && <button onClick={() => setConfirmBuff(true)} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.07)', color: '#52525b', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>🪣 Zgłoś Buff</button>}
+          {confirmBuff && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ color: '#71717a', fontSize: '0.72rem' }}>Na pewno?</span>
+              <button onClick={handleReportBuff} style={{ padding: '3px 9px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.15)', color: '#a1a1aa', fontWeight: 700, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>Tak</button>
+              <button onClick={() => setConfirmBuff(false)} style={{ padding: '3px 9px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'none', color: '#52525b', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.72rem' }}>Nie</button>
+            </div>
+          )}
+          {buffSent && <span style={{ color: '#71717a', fontSize: '0.72rem' }}>✅ Zgłoszono</span>}
+        </div>
+
+        {confirmDelete && (
+          <div style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <p style={{ color: '#f87171', fontSize: '0.8rem', marginBottom: '8px', fontWeight: 600 }}>⚠️ Usunąć tę pracę?</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '7px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: '#a1a1aa', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600, fontSize: '0.8rem' }}>Anuluj</button>
+              <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, padding: '7px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: '0.8rem', opacity: deleting ? 0.6 : 1 }}>{deleting ? '...' : '🗑 Usuń'}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function CommentsPanel() {
+    return (
+      <>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 16px', display: 'flex', flexDirection: 'column' }}>
+          <p style={{ color: '#3f3f46', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>
+            Komentarze ({comments.length + Object.values(replies).flat().length})
+          </p>
+          {comments.length === 0 && <p style={{ color: '#3f3f46', fontSize: '0.82rem' }}>Brak komentarzy. Bądź pierwszy!</p>}
+          {comments.map(c => <CommentItem key={c.id} c={c} />)}
+        </div>
+
+        {/* INPUT */}
+        <div style={{ padding: '8px 16px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+          {sent ? (
+            <div style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '10px', color: '#22c55e', fontSize: '0.82rem', textAlign: 'center' }}>
+              {userRank >= 1 ? '✅ Komentarz dodany!' : '✅ Czeka na zatwierdzenie'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {availableTypes.length > 1 && (
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {availableTypes.map(t => <button key={t.value} onClick={() => setCommentType(t.value)} style={{ padding: '3px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', background: commentType === t.value ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.04)', color: commentType === t.value ? '#f97316' : '#71717a', outline: commentType === t.value ? '1px solid rgba(249,115,22,0.4)' : 'none' }}>{t.label}</button>)}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }} placeholder="Napisz komentarz..." value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendComment()} />
+                <button onClick={handleSendComment} disabled={loading || !newComment.trim()} style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: !newComment.trim() ? 0.4 : 1 }}>→</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <style>{`
         @media (max-width: 768px) {
+          .spot-modal-outer {
+            padding: 0 !important;
+            align-items: flex-end !important;
+          }
           .spot-modal-inner {
             flex-direction: column !important;
             width: 100vw !important;
-            height: 100vh !important;
+            height: 100dvh !important;
             max-width: 100vw !important;
             border-radius: 0 !important;
+            height: unset !important;
           }
           .spot-img-panel {
-            flex: 0 0 45vw !important;
-            max-height: 45vw !important;
+            flex: 0 0 auto !important;
+            width: 100% !important;
+            aspect-ratio: 16/9 !important;
+            max-height: 40vh !important;
             min-height: unset !important;
           }
           .spot-info-panel {
             flex: 1 !important;
+            min-height: 0 !important;
             overflow-y: auto !important;
           }
-          .spot-desktop-comments { display: none !important; }
+          .spot-desktop-only { display: none !important; }
           .spot-mobile-tabs { display: flex !important; }
         }
         @media (min-width: 769px) {
           .spot-mobile-tabs { display: none !important; }
-          .spot-desktop-comments { display: flex !important; }
-          .spot-mobile-info-only { display: block !important; }
+          .spot-desktop-only { display: flex !important; }
         }
       `}</style>
 
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Space Grotesk, sans-serif' }}>
+      <div onClick={onClose} className="spot-modal-outer" style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Space Grotesk, sans-serif' }}>
         <div onClick={e => e.stopPropagation()} className="spot-modal-inner" style={{ background: '#0c0c0e', border: isBuffed ? '1px solid rgba(113,113,122,0.35)' : '1px solid rgba(255,255,255,0.09)', borderRadius: '20px', width: '90vw', maxWidth: '1100px', height: 'min(56.25vw, 82vh)', display: 'flex', flexDirection: 'row', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.9)' }}>
 
           {/* LEWA: zdjęcia */}
@@ -249,109 +362,32 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
           {/* PRAWA */}
           <div className="spot-info-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
 
-            {/* Header */}
-            <div style={{ padding: '16px 20px 12px', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                <h2 style={{ color: isBuffed ? '#52525b' : 'white', fontWeight: 700, fontSize: '1.2rem', letterSpacing: '-0.02em', margin: 0, flex: 1, textDecoration: isBuffed ? 'line-through' : 'none' }}>{spot.title}</h2>
-                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  {canDelete && !confirmDelete && <button onClick={() => setConfirmDelete(true)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>🗑</button>}
-                  <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#71717a', cursor: 'pointer', borderRadius: '8px', width: '30px', height: '30px', fontSize: '0.9rem' }}>✕</button>
-                </div>
+            {/* DESKTOP: header + komentarze zawsze widoczne */}
+            <div className="spot-desktop-only" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                <InfoPanel />
               </div>
-
-              {author && (
-                <button onClick={() => goToProfile(author.id)} style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '7px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
-                  <span>{RANKS[author.rank ?? 0]?.icon}</span>
-                  <span style={{ color: rankColors[author.rank ?? 0], fontWeight: 700, fontSize: '0.82rem' }}>{author.username}</span>
-                  <span style={{ color: '#3f3f46', fontSize: '0.68rem', marginLeft: 'auto' }}>→</span>
-                </button>
-              )}
-
-              <div style={{ display: 'flex', gap: '6px', marginTop: '7px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {isBuffed && <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: 'rgba(113,113,122,0.15)', color: '#71717a' }}>🪣 BUFFED</span>}
-                {(spot.crew_tags || []).map(crew => <span key={crew} style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
-              </div>
-
-              {spot.description && <p style={{ color: '#a1a1aa', fontSize: '0.82rem', lineHeight: 1.5, marginTop: '7px', marginBottom: 0 }}>{spot.description}</p>}
-
-              {/* REAKCJE */}
-              <div style={{ display: 'flex', gap: '5px', marginTop: '10px', flexWrap: 'wrap' }}>
-                {REACTION_EMOJIS.map(emoji => {
-                  const count = (reactions[emoji] || []).length
-                  const mine = (reactions[emoji] || []).some(r => r.user_id === userId)
-                  return (
-                    <button key={emoji} onClick={() => toggleReaction(emoji)} style={{ padding: '3px 9px', borderRadius: '9999px', border: 'none', background: mine ? 'rgba(249,115,22,0.2)' : count > 0 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px', outline: mine ? '1px solid rgba(249,115,22,0.4)' : 'none', transition: 'all 0.15s', transform: mine ? 'scale(1.05)' : 'scale(1)' }}>
-                      <span>{emoji}</span>
-                      {count > 0 && <span style={{ color: mine ? '#f97316' : '#71717a', fontSize: '0.68rem', fontWeight: 700 }}>{count}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Buff akcje */}
-              <div style={{ marginTop: '8px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {isAdmin && (isBuffed
-                  ? <button onClick={handleAdminUnbuff} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>✓ Odznacz buff</button>
-                  : <button onClick={handleAdminBuff} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.1)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>🪣 Oznacz BUFFED</button>
-                )}
-                {!isAdmin && !isBuffed && !buffSent && !confirmBuff && <button onClick={() => setConfirmBuff(true)} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.07)', color: '#52525b', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>🪣 Zgłoś Buff</button>}
-                {confirmBuff && (
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span style={{ color: '#71717a', fontSize: '0.72rem' }}>Na pewno?</span>
-                    <button onClick={handleReportBuff} style={{ padding: '3px 9px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.15)', color: '#a1a1aa', fontWeight: 700, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif' }}>Tak</button>
-                    <button onClick={() => setConfirmBuff(false)} style={{ padding: '3px 9px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'none', color: '#52525b', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.72rem' }}>Nie</button>
-                  </div>
-                )}
-                {buffSent && <span style={{ color: '#71717a', fontSize: '0.72rem' }}>✅ Zgłoszono</span>}
-              </div>
-
-              {confirmDelete && (
-                <div style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                  <p style={{ color: '#f87171', fontSize: '0.8rem', marginBottom: '8px', fontWeight: 600 }}>⚠️ Usunąć tę pracę?</p>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '7px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: '#a1a1aa', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600, fontSize: '0.8rem' }}>Anuluj</button>
-                    <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, padding: '7px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: '0.8rem', opacity: deleting ? 0.6 : 1 }}>{deleting ? '...' : '🗑 Usuń'}</button>
-                  </div>
-                </div>
-              )}
+              <CommentsPanel />
             </div>
 
-            {/* MOBILE TABS */}
+            {/* MOBILE: tabs */}
             <div className="spot-mobile-tabs" style={{ display: 'none', gap: '4px', padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
               {[{ id: 'info', label: 'ℹ️ Info' }, { id: 'comments', label: `💬 Komentarze (${comments.length})` }].map(t => (
                 <button key={t.id} onClick={() => setMobileTab(t.id)} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: mobileTab === t.id ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', color: mobileTab === t.id ? '#f97316' : '#71717a', fontWeight: 600, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', outline: mobileTab === t.id ? '1px solid rgba(249,115,22,0.3)' : 'none' }}>{t.label}</button>
               ))}
             </div>
 
-            {/* KOMENTARZE */}
-            <div className="spot-desktop-comments" style={{ flex: 1, overflowY: 'auto', padding: '10px 16px', flexDirection: 'column', display: mobileTab === 'comments' || true ? 'flex' : 'none' }}>
-              <p style={{ color: '#3f3f46', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>
-                Komentarze ({comments.length + Object.values(replies).flat().length})
-              </p>
-              {comments.length === 0 && <p style={{ color: '#3f3f46', fontSize: '0.82rem' }}>Brak komentarzy. Bądź pierwszy!</p>}
-              {comments.map(c => <CommentItem key={c.id} c={c} />)}
-            </div>
-
-            {/* INPUT */}
-            <div style={{ padding: '8px 16px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-              {sent ? (
-                <div style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '10px', color: '#22c55e', fontSize: '0.82rem', textAlign: 'center' }}>
-                  {userRank >= 1 ? '✅ Komentarz dodany!' : '✅ Czeka na zatwierdzenie'}
+            {/* MOBILE: treść taba */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+              {mobileTab === 'info' ? (
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  <InfoPanel />
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {availableTypes.length > 1 && (
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {availableTypes.map(t => <button key={t.value} onClick={() => setCommentType(t.value)} style={{ padding: '3px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', background: commentType === t.value ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.04)', color: commentType === t.value ? '#f97316' : '#71717a', outline: commentType === t.value ? '1px solid rgba(249,115,22,0.4)' : 'none' }}>{t.label}</button>)}
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <input style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }} placeholder="Napisz komentarz..." value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendComment()} />
-                    <button onClick={handleSendComment} disabled={loading || !newComment.trim()} style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: !newComment.trim() ? 0.4 : 1 }}>→</button>
-                  </div>
-                </div>
+                <CommentsPanel />
               )}
             </div>
+
           </div>
         </div>
       </div>
