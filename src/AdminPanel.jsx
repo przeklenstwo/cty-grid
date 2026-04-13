@@ -1,4 +1,3 @@
-import { t } from './i18n'
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 
@@ -56,7 +55,6 @@ export default function AdminPanel({ onClose, onRefresh }) {
     setUsers(u.data || [])
     setCrews(cr.data || [])
     setAdmins(adm.data || [])
-
     if (uid) {
       const myAdmin = (adm.data || []).find(a => a.user_id === uid)
       setAdminLevel(uid === SUPERADMIN_ID ? 2 : (myAdmin?.level ?? 1))
@@ -69,7 +67,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
     return admins.find(a => a.user_id === userId)?.level ?? 0
   }
 
-  function isAdmin(userId) {
+  function isAdminUser(userId) {
     return admins.some(a => a.user_id === userId) || userId === SUPERADMIN_ID
   }
 
@@ -94,18 +92,15 @@ export default function AdminPanel({ onClose, onRefresh }) {
   }
 
   async function setUserRank(userId, rank) {
-    // Tylko superadmin może zmieniać rangi adminów
-    if (isAdmin(userId) && !isSuperAdmin) return
-    // Nikt nie może zdegradować superadmina
+    if (isAdminUser(userId) && !isSuperAdmin) return
     if (userId === SUPERADMIN_ID) return
     await supabase.from('profiles').update({ rank }).eq('id', userId)
     fetchAll(currentUserId)
   }
 
   async function toggleBan(userId, isBanned) {
-    // Nie można zbanować superadmina ani innego admina (chyba że jesteś superadminem)
     if (userId === SUPERADMIN_ID) return
-    if (isAdmin(userId) && !isSuperAdmin) return
+    if (isAdminUser(userId) && !isSuperAdmin) return
     await supabase.from('profiles').update({ is_banned: !isBanned }).eq('id', userId)
     fetchAll(currentUserId)
   }
@@ -182,10 +177,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
       }}>
 
         {/* Header */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '20px 26px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 26px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div>
             <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.15rem', margin: 0 }}>
               {isSuperAdmin ? '👑 Superadmin' : '⚡ Panel Admina'}
@@ -194,18 +186,11 @@ export default function AdminPanel({ onClose, onRefresh }) {
               {comments.length} komentarzy czeka
             </p>
           </div>
-          <button onClick={onClose} style={{
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-            color: '#71717a', fontSize: '1rem', cursor: 'pointer',
-            borderRadius: '8px', width: '32px', height: '32px',
-          }}>✕</button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#71717a', fontSize: '1rem', cursor: 'pointer', borderRadius: '8px', width: '32px', height: '32px' }}>✕</button>
         </div>
 
         {/* Tabs */}
-        <div style={{
-          display: 'flex', gap: '4px', padding: '10px 26px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto',
-        }}>
+        <div style={{ display: 'flex', gap: '4px', padding: '10px 26px', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto' }}>
           <TabBtn id="comments" label="💬 Komentarze" count={comments.length} />
           <TabBtn id="spots"    label="📍 Prace"       count={spots.length} />
           <TabBtn id="crews"    label="👥 Crew"         count={crews.length} />
@@ -246,7 +231,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
                   </div>
                   {sp.crew_tags?.length > 0 && (
                     <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                      {sp.crew_tags.map(t => <span key={t} style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '9999px', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.2)' }}>{t}</span>)}
+                      {sp.crew_tags.map(tag => <span key={tag} style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '9999px', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.2)' }}>{tag}</span>)}
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -267,7 +252,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
                 <div style={{ marginTop: '10px' }}>
                   <p style={{ color: '#52525b', fontSize: '0.72rem', marginBottom: '6px' }}>Wybierz kolor:</p>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {COLOR_PALETTE.map(c => <div key={c} onClick={() => setNewCrewColor(c)} style={{ width: '24px', height: '24px', borderRadius: '6px', background: c, cursor: 'pointer', outline: newCrewColor === c ? '2px solid white' : '2px solid transparent', outlineOffset: '2px' }} />)}
+                    {COLOR_PALETTE.map(col => <div key={col} onClick={() => setNewCrewColor(col)} style={{ width: '24px', height: '24px', borderRadius: '6px', background: col, cursor: 'pointer', outline: newCrewColor === col ? '2px solid white' : '2px solid transparent', outlineOffset: '2px' }} />)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                     <span style={{ color: '#52525b', fontSize: '0.72rem' }}>Podgląd:</span>
@@ -282,7 +267,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
                   <div key={crew.id} style={{ ...card, display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ padding: '4px 14px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 700, background: crew.color, color: '#000', flexShrink: 0 }}>{crew.name}</span>
                     <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', flex: 1 }}>
-                      {COLOR_PALETTE.map(c => <div key={c} onClick={() => updateCrewColor(crew.id, c)} style={{ width: '20px', height: '20px', borderRadius: '5px', background: c, cursor: 'pointer', outline: crew.color === c ? '2px solid white' : '2px solid transparent', outlineOffset: '2px' }} />)}
+                      {COLOR_PALETTE.map(col => <div key={col} onClick={() => updateCrewColor(crew.id, col)} style={{ width: '20px', height: '20px', borderRadius: '5px', background: col, cursor: 'pointer', outline: crew.color === col ? '2px solid white' : '2px solid transparent', outlineOffset: '2px' }} />)}
                     </div>
                     <button onClick={() => deleteCrew(crew.id)} style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>🗑</button>
                   </div>
@@ -297,7 +282,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
                 const rank = u.rank ?? 0
                 const rInfo = RANKS[rank] ?? RANKS[0]
                 const isBanned = u.is_banned === true
-                const userIsAdmin = isAdmin(u.id)
+                const userIsAdmin = isAdminUser(u.id)
                 const userIsSuperAdmin = u.id === SUPERADMIN_ID
                 const canChangeRank = isSuperAdmin || (!userIsAdmin && !userIsSuperAdmin)
                 const canBan = (isSuperAdmin && !userIsSuperAdmin) || (!userIsAdmin && !userIsSuperAdmin)
@@ -319,7 +304,6 @@ export default function AdminPanel({ onClose, onRefresh }) {
                       <span style={{ padding: '3px 10px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color, border: `1px solid ${rInfo.color}40` }}>{rInfo.icon} {rInfo.label}</span>
                     </div>
 
-                    {/* Rangi — zablokowane dla adminów jeśli nie jesteś superadminem */}
                     {canChangeRank ? (
                       <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
                         {Object.entries(RANKS).map(([r, info]) => (
@@ -330,7 +314,6 @@ export default function AdminPanel({ onClose, onRefresh }) {
                       <p style={{ color: '#3f3f46', fontSize: '0.72rem', marginBottom: '8px' }}>🔒 Rangi chronione</p>
                     )}
 
-                    {/* Ban */}
                     {canBan && (
                       <button onClick={() => toggleBan(u.id, isBanned)} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif', background: isBanned ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)', color: isBanned ? '#22c55e' : '#ef4444', outline: isBanned ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)' }}>
                         {isBanned ? '✓ Odbanuj' : '🚫 Zbanuj'}
@@ -341,9 +324,8 @@ export default function AdminPanel({ onClose, onRefresh }) {
               })
 
           ) : tab === 'admins' && isSuperAdmin ? (
-            /* PANEL ADMINÓW — tylko superadmin */
             <div>
-              <p style={{ color: '#52525b', fontSize: '0.78rem', marginBottom: '16px' }}>Zarządzaj rolami adminów. Tylko Ty możesz to zmieniać.</p>
+              <p style={{ color: '#52525b', fontSize: '0.78rem', marginBottom: '16px' }}>Zarządzaj rolami adminów.</p>
               {users.filter(u => u.id !== SUPERADMIN_ID).map(u => {
                 const userAdminLevel = getAdminLevel(u.id)
                 const rInfo = RANKS[u.rank ?? 0] ?? RANKS[0]
@@ -354,9 +336,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
                         <span style={{ color: 'white', fontWeight: 600, fontSize: '0.92rem' }}>{u.username}</span>
                         <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color }}>{rInfo.icon} {rInfo.label}</span>
                       </div>
-                      <span style={{ fontSize: '0.72rem', color: userAdminLevel > 0 ? '#38bdf8' : '#3f3f46', fontWeight: 600 }}>
-                        {userAdminLevel > 0 ? '⚡ Admin' : 'Brak roli'}
-                      </span>
+                      <span style={{ fontSize: '0.72rem', color: userAdminLevel > 0 ? '#38bdf8' : '#3f3f46', fontWeight: 600 }}>{userAdminLevel > 0 ? '⚡ Admin' : 'Brak roli'}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <button onClick={() => setAdminRole(u.id, 0)} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', background: userAdminLevel === 0 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)', color: userAdminLevel === 0 ? 'white' : '#52525b', outline: userAdminLevel === 0 ? '1px solid rgba(255,255,255,0.2)' : 'none' }}>Brak</button>
