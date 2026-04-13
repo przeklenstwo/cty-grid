@@ -10,6 +10,71 @@ async function stripExifAndCompress(file) {
   return new File([compressed], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })
 }
 
+// Wyciągnij GPS z EXIF przed kompresją (kompresja usuwa EXIF)
+async function extractGpsFromFile(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const view = new DataView(e.target.result)
+        if (view.getUint16(0) !== 0xFFD8) { resolve(null); return }
+        let offset = 2
+        while (offset < view.byteLength) {
+          const marker = view.getUint16(offset)
+          const length = view.getUint16(offset + 2)
+          if (marker === 0xFFE1) {
+            const exifHeader = String.fromCharCode(...new Uint8Array(e.target.result, offset + 4, 4))
+            if (exifHeader === 'Exif') {
+              const tiffOffset = offset + 10
+              const littleEndian = view.getUint16(tiffOffset) === 0x4949
+              const ifdOffset = view.getUint32(tiffOffset + 4, littleEndian)
+              const numEntries = view.getUint16(tiffOffset + ifdOffset, littleEndian)
+              let gpsIfdOffset = null
+              for (let i = 0; i < numEntries; i++) {
+                const entryOffset = tiffOffset + ifdOffset + 2 + i * 12
+                const tag = view.getUint16(entryOffset, littleEndian)
+                if (tag === 0x8825) {
+                  gpsIfdOffset = view.getUint32(entryOffset + 8, littleEndian)
+                }
+              }
+              if (gpsIfdOffset !== null) {
+                const gpsEntries = view.getUint16(tiffOffset + gpsIfdOffset, littleEndian)
+                let latRef = null, lat = null, lngRef = null, lng = null
+                for (let i = 0; i < gpsEntries; i++) {
+                  const e2 = tiffOffset + gpsIfdOffset + 2 + i * 12
+                  const tag = view.getUint16(e2, littleEndian)
+                  if (tag === 1) latRef = String.fromCharCode(view.getUint8(e2 + 8))
+                  if (tag === 3) lngRef = String.fromCharCode(view.getUint8(e2 + 8))
+                  if (tag === 2 || tag === 4) {
+                    const valOffset = tiffOffset + view.getUint32(e2 + 8, littleEndian)
+                    const d = view.getUint32(valOffset, littleEndian) / view.getUint32(valOffset + 4, littleEndian)
+                    const m = view.getUint32(valOffset + 8, littleEndian) / view.getUint32(valOffset + 12, littleEndian)
+                    const s = view.getUint32(valOffset + 16, littleEndian) / view.getUint32(valOffset + 20, littleEndian)
+                    const val = d + m / 60 + s / 3600
+                    if (tag === 2) lat = val
+                    else lng = val
+                  }
+                }
+                if (lat !== null && lng !== null) {
+                  resolve({
+                    lat: latRef === 'S' ? -lat : lat,
+                    lng: lngRef === 'W' ? -lng : lng,
+                  })
+                  return
+                }
+              }
+            }
+          }
+          offset += 2 + length
+        }
+        resolve(null)
+      } catch { resolve(null) }
+    }
+    reader.onerror = () => resolve(null)
+    reader.readAsArrayBuffer(file)
+  })
+}
+
 function fuzzLocation(lat, lng, radiusMeters) {
   if (!radiusMeters) return { lat, lng }
   const r = radiusMeters / 111320
@@ -42,7 +107,7 @@ const COLOR_PALETTE = [
   '#e879f9','#4ade80','#f87171','#60a5fa','#fbbf24',
 ]
 
-export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
+export default function AddSpotModal({ coords, onClose, onAdded, userId, onUpdateCoords }) {
   const [title, setTitle]               = useState('')
   const [description, setDescription]   = useState('')
   const [selectedCrews, setSelectedCrews] = useState([])
@@ -62,6 +127,13 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
   const [addingCrew, setAddingCrew]     = useState(false)
   const [crewError, setCrewError]       = useState('')
 
+  // Lokalizacja
+  const [currentCoords, setCurrentCoords] = useState(coords)
+  const [addressQuery, setAddressQuery]   = useState('')
+  const [addressResults, setAddressResults] = useState([])
+  const [searchingAddress, setSearchingAddress] = useState(false)
+  const [exifDetected, setExifDetected]   = useState(false)
+
   useEffect(() => { fetchCrews() }, [])
 
   async function fetchCrews() {
@@ -69,7 +141,7 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
     setAllCrews(data || [])
   }
 
-  if (!coords || coords.lat === undefined) return null
+  if (!currentCoords || currentCoords.lat === undefined) return null
 
   function toggleCrew(crewName) {
     setSelectedCrews(prev => prev.includes(crewName) ? prev.filter(c => c !== crewName) : [...prev, crewName])
@@ -91,14 +163,48 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
     setNewCrewName(''); setShowNewCrew(false); setAddingCrew(false)
   }
 
-  function handleImageSelect(e) {
+  async function handleImageSelect(e) {
     const files = Array.from(e.target.files).slice(0, 8)
-    setImages(files); setPreviews(files.map(f => URL.createObjectURL(f)))
+    setImages(files)
+    setPreviews(files.map(f => URL.createObjectURL(f)))
+
+    // Spróbuj wyciągnąć GPS z pierwszego zdjęcia
+    if (files.length > 0) {
+      const gps = await extractGpsFromFile(files[0])
+      if (gps) {
+        setCurrentCoords(gps)
+        setExifDetected(true)
+        onUpdateCoords?.(gps)
+        setTimeout(() => setExifDetected(false), 4000)
+      }
+    }
   }
 
   function removeImage(idx) {
     setImages(prev => prev.filter((_, i) => i !== idx))
     setPreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  async function searchAddress(query) {
+    if (!query.trim() || query.length < 3) { setAddressResults([]); return }
+    setSearchingAddress(true)
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+        { headers: { 'Accept-Language': 'pl' } }
+      )
+      const data = await res.json()
+      setAddressResults(data)
+    } catch { setAddressResults([]) }
+    setSearchingAddress(false)
+  }
+
+  function selectAddress(result) {
+    const newCoords = { lat: parseFloat(result.lat), lng: parseFloat(result.lon) }
+    setCurrentCoords(newCoords)
+    onUpdateCoords?.(newCoords)
+    setAddressQuery(result.display_name.split(',').slice(0, 2).join(','))
+    setAddressResults([])
   }
 
   async function handleSubmit() {
@@ -121,7 +227,7 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
     }
 
     setProgress(t('saving'))
-    const { lat, lng } = isMoving ? coords : fuzzLocation(coords.lat, coords.lng, radiusMeters)
+    const { lat, lng } = isMoving ? currentCoords : fuzzLocation(currentCoords.lat, currentCoords.lng, radiusMeters)
 
     const { error: insertError } = await supabase.from('spots').insert({
       user_id: userId,
@@ -164,7 +270,7 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
           <div>
             <h2 style={{ color: 'white', fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>🎨 Nowa Praca</h2>
             <p style={{ color: '#52525b', fontSize: '0.75rem', marginTop: '2px', marginBottom: 0 }}>
-              {isMoving ? t('movingLocation') : radiusMeters > 0 ? `${t('fuzzed')}${radiusMeters}m` : `📍 ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`}
+              {isMoving ? t('movingLocation') : radiusMeters > 0 ? `${t('fuzzed')}${radiusMeters}m` : `📍 ${currentCoords.lat.toFixed(5)}, ${currentCoords.lng.toFixed(5)}`}
             </p>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#71717a', cursor: 'pointer', borderRadius: '8px', width: '32px', height: '32px', fontSize: '1rem' }}>✕</button>
@@ -173,6 +279,40 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <input style={inp} placeholder={t('spotName')} value={title} onChange={e => setTitle(e.target.value)} />
           <textarea style={{ ...inp, minHeight: '72px', resize: 'vertical' }} placeholder={t('spotDesc')} value={description} onChange={e => setDescription(e.target.value)} />
+
+          {/* WYSZUKIWANIE ADRESU */}
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{ ...inp, paddingRight: '36px' }}
+                placeholder="🔍 Szukaj adresu / ulicy..."
+                value={addressQuery}
+                onChange={e => { setAddressQuery(e.target.value); searchAddress(e.target.value) }}
+              />
+              {searchingAddress && (
+                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#f97316', fontSize: '0.8rem' }}>⟳</span>
+              )}
+            </div>
+            {addressResults.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', marginTop: '4px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+                {addressResults.map((r, i) => (
+                  <button key={i} onClick={() => selectAddress(r)} style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', borderBottom: i < addressResults.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', color: 'white', cursor: 'pointer', textAlign: 'left', fontSize: '0.82rem', fontFamily: 'Space Grotesk, sans-serif', lineHeight: 1.4 }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    <span style={{ color: '#f97316', marginRight: '6px' }}>📍</span>
+                    {r.display_name.split(',').slice(0, 3).join(',')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {exifDetected && (
+            <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📍 Lokalizacja wykryta z EXIF zdjęcia!
+            </div>
+          )}
 
           {/* OBIEKT W RUCHU */}
           <div style={{ borderRadius: '12px', border: isMoving ? '1px solid rgba(249,115,22,0.35)' : '1px solid rgba(255,255,255,0.07)', background: isMoving ? 'rgba(249,115,22,0.05)' : 'rgba(255,255,255,0.02)', padding: '14px', transition: 'all 0.2s' }}>
@@ -235,7 +375,7 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
             {allCrews.length === 0 && !showNewCrew && <p style={{ color: '#3f3f46', fontSize: '0.8rem', textAlign: 'center', padding: '8px 0' }}>{t('noCrews')}</p>}
           </div>
 
-          {/* RADIUS — tylko gdy nie w ruchu */}
+          {/* RADIUS */}
           {!isMoving && (
             <div>
               <p style={{ color: '#71717a', fontSize: '0.73rem', marginBottom: '7px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{t('locationPrecision')}</p>
