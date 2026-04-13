@@ -28,9 +28,9 @@ export const RANKS = {
 
 const DATE_FILTERS = [
   { label: t('all'), days: null },
-  { label: '7 dni',     days: 7 },
-  { label: '30 dni',    days: 30 },
-  { label: '90 dni',    days: 90 },
+  { label: '7 dni',  days: 7 },
+  { label: '30 dni', days: 30 },
+  { label: '90 dni', days: 90 },
 ]
 
 const MAP_STORAGE_KEY = 'cty-grid-map-view'
@@ -119,12 +119,12 @@ export default function App() {
   const [dateFilter, setDateFilter]       = useState(null)
   const [showHeatmap, setShowHeatmap]     = useState(false)
   const [pendingCoords, setPendingCoords] = useState(null)
-  const [pendingPin, setPendingPin] = useState(null)
+  const [pendingPin, setPendingPin]       = useState(null)
   const [selectedSpot, setSelectedSpot]   = useState(null)
   const [showAdmin, setShowAdmin]         = useState(false)
   const [isAdmin, setIsAdmin]             = useState(false)
   const [searchQuery, setSearchQuery]     = useState('')
-  const [userResults, setUserResults] = useState([])
+  const [userResults, setUserResults]     = useState([])
   const [searchOpen, setSearchOpen]       = useState(false)
   const [menuOpen, setMenuOpen]           = useState(false)
   const searchRef                         = useRef(null)
@@ -146,15 +146,6 @@ export default function App() {
       if (u) fetchProfile(u.id)
       else { setProfile(null); setIsAdmin(false) }
     })
-    async function searchUsers(query) {
-  if (!query.trim() || query.length < 2) { setUserResults([]); return }
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, username, rank')
-    .ilike('username', `%${query.trim()}%`)
-    .limit(4)
-  setUserResults(data || [])
-}
     fetchSpots(); fetchCrews()
     return () => listener.subscription.unsubscribe()
   }, [])
@@ -172,7 +163,11 @@ export default function App() {
   }
 
   async function fetchSpots() {
-    const { data } = await supabase.from('spots').select('*').eq('is_public', true).in('status', ['approved', 'buffed'])
+    const { data } = await supabase
+      .from('spots')
+      .select('*, profiles(id, username, rank)')
+      .eq('is_public', true)
+      .in('status', ['approved', 'buffed'])
     setSpots(data || [])
   }
 
@@ -182,6 +177,16 @@ export default function App() {
   }
 
   async function handleLogout() { await supabase.auth.signOut(); setProfile(null); setIsAdmin(false) }
+
+  async function searchUsers(query) {
+    if (!query.trim() || query.length < 2) { setUserResults([]); return }
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, username, rank')
+      .ilike('username', `%${query.trim()}%`)
+      .limit(4)
+    setUserResults(data || [])
+  }
 
   const allCrews = useMemo(() => {
     const set = new Set()
@@ -221,6 +226,9 @@ export default function App() {
   const nextRank = RANKS[userRank + 1]
   const userSpotCount = spots.filter(s => s.user_id === user?.id && s.status !== 'buffed').length
 
+  const rankColors = { 0: '#71717a', 1: '#38bdf8', 2: '#a78bfa', 3: '#f97316' }
+  const rankIcons  = { 0: '👶', 1: '✏️', 2: '🎯', 3: '👑' }
+
   if (loading) return (
     <div style={{ background: '#09090b', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#71717a', fontFamily: 'Space Grotesk, sans-serif' }}>Ładowanie...</p>
@@ -256,57 +264,72 @@ export default function App() {
           {/* WYSZUKIWARKA */}
           <div style={{ position: 'relative', flexShrink: 0 }} ref={searchRef}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              {searchOpen && <input autoFocus value={searchQuery} onChange={e => { setSearchQuery(e.target.value); searchUsers(e.target.value) }} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder={t('searchPlaceholder')} style={{ padding: '4px 12px', borderRadius: '9999px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', width: '180px' }} />}
-              <button onClick={() => { setSearchOpen(s => !s); if (searchOpen) setSearchQuery('') }} style={{ padding: '4px 10px', borderRadius: '9999px', border: 'none', background: searchOpen || searchQuery ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', color: searchOpen || searchQuery ? '#f97316' : '#52525b', cursor: 'pointer', fontSize: '0.85rem', outline: searchOpen ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>🔍</button>
+              {searchOpen && (
+                <input
+                  autoFocus
+                  value={searchQuery}
+                  onChange={e => { setSearchQuery(e.target.value); searchUsers(e.target.value) }}
+                  onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false); setUserResults([]) } }}
+                  placeholder={t('searchPlaceholder')}
+                  style={{ padding: '4px 12px', borderRadius: '9999px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', width: '180px' }}
+                />
+              )}
+              <button onClick={() => { setSearchOpen(s => !s); if (searchOpen) { setSearchQuery(''); setUserResults([]) } }} style={{ padding: '4px 10px', borderRadius: '9999px', border: 'none', background: searchOpen || searchQuery ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', color: searchOpen || searchQuery ? '#f97316' : '#52525b', cursor: 'pointer', fontSize: '0.85rem', outline: searchOpen ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>🔍</button>
             </div>
-           {searchOpen && searchQuery && (searchResults.length > 0 || userResults.length > 0) && (
-  <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: 'rgba(12,12,14,0.98)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', width: '280px', zIndex: 2000, boxShadow: '0 20px 40px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
-    
-    {userResults.length > 0 && (
-      <>
-        <p style={{ color: '#52525b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 14px 6px', margin: 0 }}>👤 Użytkownicy</p>
-        {userResults.map(u => {
-          const rankColors = { 0: '#71717a', 1: '#38bdf8', 2: '#a78bfa', 3: '#f97316' }
-          const rankIcons  = { 0: '👶', 1: '✏️', 2: '🎯', 3: '👑' }
-          return (
-            <div key={u.id} onClick={() => { navigate(`/profile/${u.id}`); setSearchOpen(false); setSearchQuery('') }} style={{ padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'none'}
-            >
-              <span style={{ fontSize: '0.85rem' }}>{rankIcons[u.rank ?? 0]}</span>
-              <span style={{ color: rankColors[u.rank ?? 0], fontWeight: 700, fontSize: '0.85rem', flex: 1 }}>{u.username}</span>
-              <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>→</span>
-            </div>
-          )
-        })}
-      </>
-    )}
 
-    {searchResults.length > 0 && (
-      <>
-        <p style={{ color: '#52525b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 14px 6px', margin: 0, borderTop: userResults.length > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>🎨 Prace ({filteredSpots.length})</p>
-        {searchResults.map(spot => {
-          const color = spot.crew_tags?.[0] ? (crewMap[spot.crew_tags[0]] || '#f97316') : '#f97316'
-          return (
-            <div key={spot.id} onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }} style={{ padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'none'}
-            >
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: spot.status === 'buffed' ? '#4a4a4a' : color, flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.title}</p>
-                <div style={{ display: 'flex', gap: '4px', marginTop: '3px' }}>
-                  {(spot.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
-                </div>
+            {searchOpen && searchQuery && (searchResults.length > 0 || userResults.length > 0) && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: 'rgba(12,12,14,0.98)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', width: '280px', zIndex: 2000, boxShadow: '0 20px 40px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+
+                {userResults.length > 0 && (
+                  <>
+                    <p style={{ color: '#52525b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 14px 6px', margin: 0 }}>👤 Użytkownicy</p>
+                    {userResults.map(u => (
+                      <div key={u.id} onClick={() => { navigate(`/profile/${u.id}`); setSearchOpen(false); setSearchQuery(''); setUserResults([]) }}
+                        style={{ padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                      >
+                        <span style={{ fontSize: '0.85rem' }}>{rankIcons[u.rank ?? 0]}</span>
+                        <span style={{ color: rankColors[u.rank ?? 0], fontWeight: 700, fontSize: '0.85rem', flex: 1 }}>{u.username}</span>
+                        <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>→</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {searchResults.length > 0 && (
+                  <>
+                    <p style={{ color: '#52525b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 14px 6px', margin: 0, borderTop: userResults.length > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>🎨 Prace ({filteredSpots.length})</p>
+                    {searchResults.map(spot => {
+                      const color = spot.crew_tags?.[0] ? (crewMap[spot.crew_tags[0]] || '#f97316') : '#f97316'
+                      return (
+                        <div key={spot.id} onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }}
+                          style={{ padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                        >
+                          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: spot.status === 'buffed' ? '#4a4a4a' : color, flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.title}</p>
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '3px', alignItems: 'center' }}>
+                              {spot.profiles?.username && (
+                                <span style={{ color: rankColors[spot.profiles.rank ?? 0], fontSize: '0.62rem', fontWeight: 600 }}>
+                                  {rankIcons[spot.profiles.rank ?? 0]} {spot.profiles.username}
+                                </span>
+                              )}
+                              {(spot.crew_tags || []).map(crew => (
+                                <span key={crew} style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>
+                              ))}
+                            </div>
+                          </div>
+                          <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>→</span>
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
               </div>
-              <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>→</span>
-            </div>
-          )
-        })}
-      </>
-    )}
-  </div>
-)}
+            )}
           </div>
         </div>
 
@@ -327,20 +350,30 @@ export default function App() {
 
         {/* MOBILE */}
         <div className="mobile-right" style={{ display: 'none', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <button onClick={() => { setSearchOpen(s => !s); if (searchOpen) setSearchQuery('') }} style={{ background: searchOpen || searchQuery ? 'rgba(249,115,22,0.15)' : 'none', border: 'none', color: searchOpen || searchQuery ? '#f97316' : '#71717a', cursor: 'pointer', fontSize: '1.1rem', padding: '4px 8px', borderRadius: '8px' }}>🔍</button>
+          <button onClick={() => { setSearchOpen(s => !s); if (searchOpen) { setSearchQuery(''); setUserResults([]) } }} style={{ background: searchOpen || searchQuery ? 'rgba(249,115,22,0.15)' : 'none', border: 'none', color: searchOpen || searchQuery ? '#f97316' : '#71717a', cursor: 'pointer', fontSize: '1.1rem', padding: '4px 8px', borderRadius: '8px' }}>🔍</button>
           <button onClick={() => setMenuOpen(m => !m)} style={{ background: menuOpen ? 'rgba(255,255,255,0.08)' : 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1.2rem', padding: '4px 8px', borderRadius: '8px' }}>☰</button>
         </div>
       </div>
 
       {/* MOBILE SEARCH */}
       <div className="mobile-search" style={{ display: 'none', position: 'absolute', top: '52px', left: 0, right: 0, zIndex: 999, padding: '8px 12px', background: 'rgba(9,9,11,0.97)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder={t('searchPlaceholder')} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }} />
-        {searchQuery && searchResults.length > 0 && (
+        <input autoFocus value={searchQuery} onChange={e => { setSearchQuery(e.target.value); searchUsers(e.target.value) }} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false); setUserResults([]) } }} placeholder={t('searchPlaceholder')} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }} />
+        {searchQuery && (searchResults.length > 0 || userResults.length > 0) && (
           <div style={{ marginTop: '6px', background: 'rgba(12,12,14,0.99)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
+            {userResults.map(u => (
+              <div key={u.id} onClick={() => { navigate(`/profile/${u.id}`); setSearchOpen(false); setSearchQuery(''); setUserResults([]) }}
+                style={{ padding: '12px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span>{rankIcons[u.rank ?? 0]}</span>
+                <span style={{ color: rankColors[u.rank ?? 0], fontWeight: 700, fontSize: '0.88rem' }}>{u.username}</span>
+              </div>
+            ))}
             {searchResults.map(spot => (
               <div key={spot.id} onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }} style={{ padding: '12px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
-                <span style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem' }}>{spot.title}</span>
+                <div style={{ flex: 1 }}>
+                  <span style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem' }}>{spot.title}</span>
+                  {spot.profiles?.username && <span style={{ color: rankColors[spot.profiles.rank ?? 0], fontSize: '0.75rem', marginLeft: '6px' }}>{rankIcons[spot.profiles.rank ?? 0]} {spot.profiles.username}</span>}
+                </div>
               </div>
             ))}
           </div>
@@ -378,7 +411,6 @@ export default function App() {
             <button onClick={() => { navigate('/feed'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{t('feed')}</button>
             <button onClick={() => { navigate('/profile'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>👤 Profil</button>
             {isAdmin && <button onClick={() => { setShowAdmin(true); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(249,115,22,0.1)', color: '#f97316', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>⚡ Admin</button>}
-            
             <button onClick={() => setLang(getLang() === 'pl' ? 'en' : 'pl')} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{getLang() === 'pl' ? '🌐 EN' : '🌐 PL'}</button>
             <button onClick={handleLogout} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{t('logout')}</button>
           </div>
@@ -410,11 +442,8 @@ export default function App() {
           </MarkerClusterGroup>
         )}
         {pendingPin && (
-  <Marker
-    position={[pendingPin.lat, pendingPin.lng]}
-    icon={makePin('#22c55e')}
-  />
-)}
+          <Marker position={[pendingPin.lat, pendingPin.lng]} icon={makePin('#22c55e')} />
+        )}
       </MapContainer>
 
       <style>{`
@@ -430,7 +459,15 @@ export default function App() {
       {searchOpen && <style>{`.mobile-search { display: block !important; }`}</style>}
 
       {selectedSpot && <SpotModal spot={selectedSpot} userId={user.id} userRank={userRank} isAdmin={isAdmin} onClose={() => setSelectedSpot(null)} onDeleted={() => { handleRefresh(); setSelectedSpot(null) }} onRefresh={handleRefresh} />}
-      {pendingCoords && <AddSpotModal coords={pendingCoords} userId={user.id} onClose={() => setPendingCoords(null)} onAdded={() => { handleRefresh(); setPendingCoords(null) }} />}
+      {pendingCoords && (
+        <AddSpotModal
+          coords={pendingCoords}
+          userId={user.id}
+          onClose={() => { setPendingCoords(null); setPendingPin(null) }}
+          onAdded={() => { handleRefresh(); setPendingCoords(null); setPendingPin(null) }}
+          onUpdateCoords={(c) => setPendingPin(c)}
+        />
+      )}
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} onRefresh={handleRefresh} />}
     </div>
   )
