@@ -166,7 +166,6 @@ export default function App() {
 
   async function handleRefresh() {
     await fetchSpots(); await fetchCrews()
-    // Odśwież profil po dodaniu spotu (ranga mogła się zmienić)
     if (user) fetchProfile(user.id)
   }
 
@@ -207,8 +206,6 @@ export default function App() {
 
   const userRank = profile?.rank ?? 0
   const rankInfo = RANKS[userRank] ?? RANKS[0]
-
-  // Ile prac do następnej rangi
   const nextRank = RANKS[userRank + 1]
   const userSpotCount = spots.filter(s => s.user_id === user?.id && s.status !== 'buffed').length
 
@@ -224,17 +221,8 @@ export default function App() {
     <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#09090b' }}>
 
       {/* NAVBAR */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 16px',
-        background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        fontFamily: 'Space Grotesk, sans-serif', gap: '8px',
-      }}>
-        <h1 style={{ color: 'white', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.04em', flexShrink: 0 }}>
-          CTY-GRID
-        </h1>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)', fontFamily: 'Space Grotesk, sans-serif', gap: '8px' }}>
+        <h1 style={{ color: 'white', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.04em', flexShrink: 0 }}>CTY-GRID</h1>
 
         {/* DESKTOP FILTRY */}
         <div className="desktop-filters" style={{ display: 'flex', alignItems: 'center', gap: '5px', overflowX: 'auto', flex: 1 }}>
@@ -287,24 +275,14 @@ export default function App() {
 
         {/* PRAWA — desktop */}
         <div className="desktop-right" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Ranga z progress do następnej */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '9999px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rankInfo.color}38`, cursor: 'default', position: 'relative' }}
-            title={nextRank ? `${userSpotCount}/${nextRank.spotsNeeded} prac do ${nextRank.label}` : 'Maksymalna ranga!'}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '9999px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${rankInfo.color}38`, cursor: 'default' }} title={nextRank ? `${userSpotCount}/${nextRank.spotsNeeded} prac do ${nextRank.label}` : 'Maksymalna ranga!'}>
             <span style={{ fontSize: '0.72rem' }}>{rankInfo.icon}</span>
             <span style={{ color: rankInfo.color, fontSize: '0.7rem', fontWeight: 700 }}>{rankInfo.label}</span>
             {nextRank && <span style={{ color: '#3f3f46', fontSize: '0.65rem' }}>{userSpotCount}/{nextRank.spotsNeeded}</span>}
           </div>
-          <button onClick={() => window.open('/about.html', '_blank')} style={{
-  background: 'none', border: '1px solid rgba(255,255,255,0.07)',
-  color: '#71717a', padding: '5px 11px', borderRadius: '8px',
-  cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
-}}>ℹ️ O nas</button>
           <button onClick={() => window.open('/about.html', '_blank')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>ℹ️ O nas</button>
           <button onClick={() => navigate('/feed')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>📰 Feed</button>
-          <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#a1a1aa', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: '4px 8px', borderRadius: '8px' }}
-            onMouseEnter={e => e.target.style.color = 'white'} onMouseLeave={e => e.target.style.color = '#a1a1aa'}
-          >{profile?.username || user.email}</button>
+          <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#a1a1aa', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: '4px 8px', borderRadius: '8px' }} onMouseEnter={e => e.target.style.color = 'white'} onMouseLeave={e => e.target.style.color = '#a1a1aa'}>{profile?.username || user.email}</button>
           {isAdmin && <button onClick={() => setShowAdmin(true)} style={{ background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.32)', color: '#f97316', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif' }}>⚡ Admin</button>}
           <button onClick={handleLogout} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>Wyloguj</button>
         </div>
@@ -341,7 +319,6 @@ export default function App() {
               {nextRank && <p style={{ color: '#52525b', fontSize: '0.68rem', margin: '2px 0 0' }}>{userSpotCount}/{nextRank.spotsNeeded} do {nextRank.label}</p>}
             </div>
           </div>
-
           <p style={{ color: '#52525b', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' }}>Filtry</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '10px' }}>
             <button onClick={() => { setActiveCrew(null); setMenuOpen(false) }} style={{ padding: '5px 12px', borderRadius: '9999px', border: 'none', background: activeCrew === null ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', color: activeCrew === null ? 'white' : '#52525b', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>Wszystkie</button>
@@ -359,6 +336,7 @@ export default function App() {
             </select>
           </div>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button onClick={() => { window.open('/about.html', '_blank'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>ℹ️ O nas</button>
             <button onClick={() => { navigate('/feed'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>📰 Feed</button>
             <button onClick={() => { navigate('/profile'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>👤 Profil</button>
             {isAdmin && <button onClick={() => { setShowAdmin(true); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(249,115,22,0.1)', color: '#f97316', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>⚡ Admin</button>}
@@ -386,12 +364,7 @@ export default function App() {
               const firstCrew = spot.crew_tags?.[0]
               const pinColor = firstCrew ? (crewMap[firstCrew] || '#f97316') : '#f97316'
               return (
-                <Marker
-                  key={spot.id}
-                  position={[spot.lat, spot.lng]}
-                  icon={spot.is_moving ? makeMovingPin(spot.vehicle_type) : makePin(pinColor, buffed, !!searchQuery)}
-                  eventHandlers={{ click: () => setSelectedSpot(spot) }}
-                />
+                <Marker key={spot.id} position={[spot.lat, spot.lng]} icon={spot.is_moving ? makeMovingPin(spot.vehicle_type) : makePin(pinColor, buffed, !!searchQuery)} eventHandlers={{ click: () => setSelectedSpot(spot) }} />
               )
             })}
           </MarkerClusterGroup>
@@ -416,8 +389,3 @@ export default function App() {
     </div>
   )
 }
-<button onClick={() => window.open('/about.html', '_blank')} style={{
-  background: 'none', border: '1px solid rgba(255,255,255,0.07)',
-  color: '#71717a', padding: '5px 11px', borderRadius: '8px',
-  cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
-}}>ℹ️ O nas</button>
