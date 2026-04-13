@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTY-GRID — Mapa Graffiti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #080808;
+    --surface: #0f0f0f;
+    --orange: #f97316;
+    --white: #f0ede8;
+    --gray: #3a3a3a;
+    --gray-light: #6b6b6b;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Barlow Condensed', sans-serif;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 256px;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 60px;
+    background: rgba(8,8,8,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(249,115,22,0.1);
+  }
+  .nav-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: var(--orange); letter-spacing: 0.15em; }
+  .nav-link { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--gray-light); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; transition: color 0.2s; }
+  .nav-link:hover { color: var(--orange); }
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 120px 60px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -200px; right: -200px;
+    width: 700px; height: 700px;
+    background: radial-gradient(circle, rgba(249,115,22,0.1) 0%, transparent 70%);
+    animation: pulse 7s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(rgba(249,115,22,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.03) 1px, transparent 1px);
+    background-size: 80px 80px;
+    pointer-events: none;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:.6} 50%{transform:scale(1.15);opacity:1} }
+  .hero-content { position: relative; z-index: 2; max-width: 950px; }
+  .hero-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--orange);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.1s forwards;
+  }
+  .hero-tag::before { content: ''; display: block; width: 40px; height: 1px; background: var(--orange); }
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(5rem, 14vw, 13rem);
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.25s forwards;
+  }
+  .hero-title .outline { -webkit-text-stroke: 2px var(--white); color: transparent; display: block; }
+  .hero-title .accent { color: var(--orange); display: block; }
+  .hero-subtitle {
+    font-size: 1.3rem;
+    font-weight: 300;
+    color: var(--gray-light);
+    margin-top: 32px;
+    max-width: 500px;
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.4s forwards;
+  }
+  .hero-subtitle strong { color: var(--white); font-weight: 600; }
+  .hero-cta {
+    display: flex;
+    gap: 16px;
+    margin-top: 48px;
+    flex-wrap: wrap;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.55s forwards;
+  }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(24px); } }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--orange); color: #000;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none;
+    padding: 14px 32px;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    transition: all 0.2s;
+  }
+  .btn-primary:hover { background: #fff; transform: translateY(-2px); }
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: transparent; color: var(--white);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none;
+    padding: 14px 32px; border: 1px solid var(--gray);
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--orange); color: var(--orange); transform: translateY(-2px); }
+  .ticker { background: var(--orange); padding: 10px 0; overflow: hidden; white-space: nowrap; }
+  .ticker-inner { display: inline-flex; animation: ticker 22s linear infinite; }
+  .ticker-item { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 0.2em; color: #000; padding: 0 40px; }
+  .ticker-dot { color: rgba(0,0,0,0.35); }
+  @keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+  .beta-notice {
+    background: rgba(249,115,22,0.05);
+    border: 1px solid rgba(249,115,22,0.2);
+    border-left: 3px solid var(--orange);
+    padding: 28px 60px;
+  }
+  .beta-notice-inner { max-width: 900px; margin: 0 auto; }
+  .beta-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--orange); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+  .beta-text { font-size: 1.05rem; font-weight: 300; color: var(--gray-light); line-height: 1.7; letter-spacing: 0.02em; }
+  .beta-text strong { color: var(--white); font-weight: 600; }
+  .features { padding: 100px 60px; max-width: 1100px; margin: 0 auto; }
+  .section-label {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--orange);
+    letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 48px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--gray); }
+  .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2px; }
+  .feature {
+    background: var(--surface); padding: 32px;
+    border: 1px solid var(--gray); position: relative; overflow: hidden; transition: all 0.3s;
+  }
+  .feature::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 0; background: var(--orange); transition: height 0.3s; }
+  .feature:hover::before { height: 100%; }
+  .feature:hover { border-color: rgba(249,115,22,0.25); }
+  .feature-icon { font-size: 1.8rem; margin-bottom: 16px; display: block; }
+  .feature-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.08em; color: var(--white); margin-bottom: 8px; }
+  .feature-desc { font-size: 0.95rem; font-weight: 300; color: var(--gray-light); line-height: 1.6; }
+  .ranks { padding: 80px 60px; background: var(--surface); border-top: 1px solid var(--gray); border-bottom: 1px solid var(--gray); }
+  .ranks-inner { max-width: 1100px; margin: 0 auto; }
+  .ranks-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin-top: 48px; }
+  .rank-card { padding: 28px 24px; border: 1px solid var(--gray); text-align: center; transition: transform 0.3s; }
+  .rank-card:hover { transform: translateY(-4px); }
+  .rank-icon { font-size: 2rem; display: block; margin-bottom: 12px; }
+  .rank-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .rank-req { font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.1em; opacity: 0.5; }
+  .telegram-section { padding: 100px 60px; text-align: center; position: relative; overflow: hidden; }
+  .telegram-section::before {
+    content: ''; position: absolute; bottom: -100px; left: 50%; transform: translateX(-50%);
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .telegram-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.5rem, 6vw, 5rem); letter-spacing: 0.05em; line-height: 1; margin-bottom: 20px; }
+  .telegram-title span { color: var(--orange); }
+  .telegram-sub { font-size: 1.05rem; font-weight: 300; color: var(--gray-light); margin-bottom: 40px; letter-spacing: 0.02em; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+  footer { border-top: 1px solid var(--gray); padding: 28px 60px; display: flex; justify-content: space-between; align-items: center; }
+  .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; color: var(--orange); letter-spacing: 0.15em; }
+  .footer-text { font-family: 'DM Mono', monospace; font-size: 0.63rem; color: var(--gray-light); letter-spacing: 0.08em; text-align: right; line-height: 1.8; }
+  .cursor { width: 8px; height: 8px; background: var(--orange); border-radius: 50%; position: fixed; pointer-events: none; z-index: 9998; transition: transform 0.15s; mix-blend-mode: difference; }
+  @media (max-width: 768px) {
+    .nav { padding: 16px 20px; }
+    .hero { padding: 100px 20px 60px; }
+    .features { padding: 60px 20px; }
+    .ranks { padding: 60px 20px; }
+    .ranks-grid { grid-template-columns: repeat(2, 1fr); }
+    .telegram-section { padding: 60px 20px; }
+    .beta-notice { padding: 20px; }
+    footer { padding: 20px; flex-direction: column; gap: 10px; }
+    .footer-text { text-align: center; }
+    .cursor { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+
+<nav class="nav">
+  <div class="nav-logo">CTY-GRID</div>
+  <a href="https://cty-grid.pl" class="nav-link">→ Wejdź na mapę</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-tag">Mapa graffiti / Polska</div>
+    <h1 class="hero-title">
+      <span class="outline">CTY</span>
+      <span class="accent">GRID</span>
+    </h1>
+    <p class="hero-subtitle">
+      Prywatna mapa <strong>społeczności grafficiarzy</strong>. Dokumentuj prace, śledź ekipę, buduj historię ulicy.
+    </p>
+    <div class="hero-cta">
+      <a href="https://cty-grid.pl" class="btn-primary">→ Wejdź na mapę</a>
+      <a href="https://t.me/+ttP-bMzN8vc4M2U0" class="btn-secondary" target="_blank">✈ Telegram</a>
+    </div>
+  </div>
+</section>
+
+<div class="ticker">
+  <div class="ticker-inner">
+    <span class="ticker-item">DOKUMENTUJ <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">MAPUJ MIASTO <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">BUDUJ EKIPĘ <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">ŚLEDŹ SPOTY <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">CTY-GRID <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">GRAFFITI MAPS <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">DOKUMENTUJ <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">MAPUJ MIASTO <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">BUDUJ EKIPĘ <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">ŚLEDŹ SPOTY <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">CTY-GRID <span class="ticker-dot">◆</span></span>
+    <span class="ticker-item">GRAFFITI MAPS <span class="ticker-dot">◆</span></span>
+  </div>
+</div>
+
+<div class="beta-notice">
+  <div class="beta-notice-inner">
+    <div class="beta-label">// STATUS: BETA</div>
+    <p class="beta-text">
+      Strona <strong>dopiero raczkuje</strong> — możecie napotkać błędy i niedociągnięcia. Pracujemy nad tym <strong>na bieżąco</strong> i regularnie wprowadzamy poprawki. Wasza cierpliwość jest doceniana. Uwagi i bugi zgłaszajcie na <strong>Telegramie</strong>.
+    </p>
+  </div>
+</div>
+
+<section class="features">
+  <div class="section-label">Co oferujemy</div>
+  <div class="features-grid">
+    <div class="feature">
+      <span class="feature-icon">🗺️</span>
+      <div class="feature-title">Mapa Spotów</div>
+      <p class="feature-desc">Interaktywna mapa z pinezkami prac w Twoim mieście. Filtruj po ekipie, dacie, statusie.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🔒</span>
+      <div class="feature-title">Prywatność</div>
+      <p class="feature-desc">Rozmyta lokalizacja, tryb ghost, prywatne spoty. Ty decydujesz co jest widoczne.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">👥</span>
+      <div class="feature-title">Ekipy / Crews</div>
+      <p class="feature-desc">Crew tagi z kolorami, filtrowanie po ekipie, leaderboard aktywności.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🚂</span>
+      <div class="feature-title">Obiekty w ruchu</div>
+      <p class="feature-desc">Specjalny tryb dla pociągów, tramwajów i busów — lokalizacja orientacyjna, spot nie jest palony.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🔥</span>
+      <div class="feature-title">Reakcje</div>
+      <p class="feature-desc">Reaguj na prace ekipy — 🔥 💯 👀 💀 🎨 👑. Widziałem na żywo? Zostaw ślad.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🔗</span>
+      <div class="feature-title">System Zaproszeń</div>
+      <p class="feature-desc">Zamknięta społeczność — dostęp tylko przez link od zaufanego członka.</p>
+    </div>
+  </div>
+</section>
+
+<section class="ranks">
+  <div class="ranks-inner">
+    <div class="section-label">System rang</div>
+    <div class="ranks-grid">
+      <div class="rank-card" style="border-color:#71717a30">
+        <span class="rank-icon">👶</span>
+        <div class="rank-name" style="color:#71717a">Newbie</div>
+        <div class="rank-req">0 prac</div>
+      </div>
+      <div class="rank-card" style="border-color:#38bdf830">
+        <span class="rank-icon">✏️</span>
+        <div class="rank-name" style="color:#38bdf8">Writer</div>
+        <div class="rank-req">30 prac</div>
+      </div>
+      <div class="rank-card" style="border-color:#a78bfa30">
+        <span class="rank-icon">🎯</span>
+        <div class="rank-name" style="color:#a78bfa">Veteran</div>
+        <div class="rank-req">100 prac</div>
+      </div>
+      <div class="rank-card" style="border-color:#f9731630">
+        <span class="rank-icon">👑</span>
+        <div class="rank-name" style="color:#f97316">Legend</div>
+        <div class="rank-req">230 prac</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="telegram-section">
+  <div class="section-label" style="justify-content:center;max-width:400px;margin:0 auto 48px">Społeczność</div>
+  <h2 class="telegram-title">MASZ UWAGI?<br><span>NAPISZ DO NAS</span></h2>
+  <p class="telegram-sub">Dołącz do grupy na Telegramie — zgłaszaj błędy, proponuj funkcje, rozmawiaj z ekipą.</p>
+  <a href="https://t.me/+ttP-bMzN8vc4M2U0" target="_blank" class="btn-primary" style="font-size:1.1rem;padding:16px 40px">
+    ✈ Dołącz na Telegramie
+  </a>
+</section>
+
+<footer>
+  <div class="footer-logo">CTY-GRID</div>
+  <div class="footer-text">
+    cty-grid.pl<br>
+    <span style="color:#3a3a3a">Mapa społeczności grafficiarzy</span>
+  </div>
+</footer>
+
+<script>
+  const cursor = document.getElementById('cursor')
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX - 4 + 'px'
+    cursor.style.top = e.clientY - 4 + 'px'
+  })
+  document.querySelectorAll('a, button').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.style.transform = 'scale(3)')
+    el.addEventListener('mouseleave', () => cursor.style.transform = 'scale(1)')
+  })
+</script>
+</body>
+</html>
