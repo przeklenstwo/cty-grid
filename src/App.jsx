@@ -1,3 +1,4 @@
+import { t, getLang, setLang } from './i18n'
 import SpotModal from './SpotModal'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, useMapEvent } from 'react-leaflet'
@@ -26,7 +27,7 @@ export const RANKS = {
 }
 
 const DATE_FILTERS = [
-  { label: 'Wszystkie', days: null },
+  { label: t('all'), days: null },
   { label: '7 dni',     days: 7 },
   { label: '30 dni',    days: 30 },
   { label: '90 dni',    days: 90 },
@@ -232,19 +233,19 @@ export default function App() {
             const active = activeCrew === crew
             return <button key={crew} onClick={() => setActiveCrew(active ? null : crew)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', background: active ? color : 'rgba(255,255,255,0.04)', color: active ? '#000' : color, fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', whiteSpace: 'nowrap', outline: active ? 'none' : `1px solid ${color}55`, boxShadow: active ? `0 0 10px ${color}50` : 'none', transition: 'all 0.15s' }}>{crew}</button>
           })}
-          <button onClick={() => setShowBuffed(b => !b)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', background: showBuffed ? 'rgba(113,113,122,0.15)' : 'rgba(113,113,122,0.05)', color: showBuffed ? '#71717a' : '#3f3f46', fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', whiteSpace: 'nowrap', outline: showBuffed ? '1px solid rgba(113,113,122,0.28)' : 'none' }}>{showBuffed ? '🪣 Buffed: ON' : '🪣 Buffed: OFF'}</button>
+          <button onClick={() => setShowBuffed(b => !b)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', background: showBuffed ? 'rgba(113,113,122,0.15)' : 'rgba(113,113,122,0.05)', color: showBuffed ? '#71717a' : '#3f3f46', fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', whiteSpace: 'nowrap', outline: showBuffed ? '1px solid rgba(113,113,122,0.28)' : 'none' }}>{showBuffed ? t('buffedOn') : t('buffedOff')}</button>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <select value={dateFilter ?? ''} onChange={e => setDateFilter(e.target.value ? Number(e.target.value) : null)} style={{ padding: '4px 24px 4px 10px', borderRadius: '9999px', border: 'none', background: dateFilter ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)', color: dateFilter ? '#38bdf8' : '#52525b', fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', outline: dateFilter ? '1px solid rgba(56,189,248,0.3)' : 'none', appearance: 'none', WebkitAppearance: 'none' }}>
               {DATE_FILTERS.map(f => <option key={f.label} value={f.days ?? ''} style={{ background: '#0c0c0e', color: 'white' }}>📅 {f.label}</option>)}
             </select>
             <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: dateFilter ? '#38bdf8' : '#52525b', fontSize: '0.6rem', pointerEvents: 'none' }}>▼</span>
           </div>
-          <button onClick={() => setShowHeatmap(h => !h)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', background: showHeatmap ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.04)', color: showHeatmap ? '#f87171' : '#52525b', fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', whiteSpace: 'nowrap', outline: showHeatmap ? '1px solid rgba(239,68,68,0.3)' : 'none', transition: 'all 0.15s' }}>🌡️ Heat{showHeatmap ? ': ON' : ': OFF'}</button>
+          <button onClick={() => setShowHeatmap(h => !h)} style={{ padding: '4px 12px', borderRadius: '9999px', border: 'none', background: showHeatmap ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.04)', color: showHeatmap ? '#f87171' : '#52525b', fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', whiteSpace: 'nowrap', outline: showHeatmap ? '1px solid rgba(239,68,68,0.3)' : 'none', transition: 'all 0.15s' }}>🌡️ {showHeatmap ? t('heatOn') : t('heatOff')}</button>
 
           {/* WYSZUKIWARKA */}
           <div style={{ position: 'relative', flexShrink: 0 }} ref={searchRef}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              {searchOpen && <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder="Szukaj spotu, crew..." style={{ padding: '4px 12px', borderRadius: '9999px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', width: '180px' }} />}
+              {searchOpen && <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder={t('searchPlaceholder')} style={{ padding: '4px 12px', borderRadius: '9999px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', width: '180px' }} />}
               <button onClick={() => { setSearchOpen(s => !s); if (searchOpen) setSearchQuery('') }} style={{ padding: '4px 10px', borderRadius: '9999px', border: 'none', background: searchOpen || searchQuery ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', color: searchOpen || searchQuery ? '#f97316' : '#52525b', cursor: 'pointer', fontSize: '0.85rem', outline: searchOpen ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>🔍</button>
             </div>
             {searchOpen && searchQuery && searchResults.length > 0 && (
@@ -280,11 +281,12 @@ export default function App() {
             <span style={{ color: rankInfo.color, fontSize: '0.7rem', fontWeight: 700 }}>{rankInfo.label}</span>
             {nextRank && <span style={{ color: '#3f3f46', fontSize: '0.65rem' }}>{userSpotCount}/{nextRank.spotsNeeded}</span>}
           </div>
-          <button onClick={() => window.open('/about.html', '_blank')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>ℹ️ O nas</button>
-          <button onClick={() => navigate('/feed')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>📰 Feed</button>
+          <button onClick={() => window.open('/about.html', '_blank')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('about')}</button>
+          <button onClick={() => navigate('/feed')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('feed')}</button>
           <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#a1a1aa', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: '4px 8px', borderRadius: '8px' }} onMouseEnter={e => e.target.style.color = 'white'} onMouseLeave={e => e.target.style.color = '#a1a1aa'}>{profile?.username || user.email}</button>
           {isAdmin && <button onClick={() => setShowAdmin(true)} style={{ background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.32)', color: '#f97316', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif' }}>⚡ Admin</button>}
-          <button onClick={handleLogout} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>Wyloguj</button>
+          <button onClick={handleLogout} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('logout')}</button>
+          <button onClick={() => setLang(getLang() === 'pl' ? 'en' : 'pl')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>{getLang() === 'pl' ? 'EN' : 'PL'}</button>
         </div>
 
         {/* MOBILE */}
@@ -296,7 +298,7 @@ export default function App() {
 
       {/* MOBILE SEARCH */}
       <div className="mobile-search" style={{ display: 'none', position: 'absolute', top: '52px', left: 0, right: 0, zIndex: 999, padding: '8px 12px', background: 'rgba(9,9,11,0.97)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder="Szukaj spotu, crew..." style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }} />
+        <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder={t('searchPlaceholder')} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', boxSizing: 'border-box' }} />
         {searchQuery && searchResults.length > 0 && (
           <div style={{ marginTop: '6px', background: 'rgba(12,12,14,0.99)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
             {searchResults.map(spot => (
@@ -329,25 +331,27 @@ export default function App() {
             })}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
-            <button onClick={() => setShowBuffed(b => !b)} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: showBuffed ? 'rgba(113,113,122,0.15)' : 'rgba(255,255,255,0.04)', color: showBuffed ? '#a1a1aa' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{showBuffed ? '🪣 Buffed: ON' : '🪣 Buffed: OFF'}</button>
-            <button onClick={() => setShowHeatmap(h => !h)} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: showHeatmap ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)', color: showHeatmap ? '#f87171' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>🌡️ Heat{showHeatmap ? ': ON' : ': OFF'}</button>
+            <button onClick={() => setShowBuffed(b => !b)} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: showBuffed ? 'rgba(113,113,122,0.15)' : 'rgba(255,255,255,0.04)', color: showBuffed ? '#a1a1aa' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{showBuffed ? t('buffedOn') : t('buffedOff')}</button>
+            <button onClick={() => setShowHeatmap(h => !h)} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: showHeatmap ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)', color: showHeatmap ? '#f87171' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>🌡️ {showHeatmap ? t('heatOn') : t('heatOff')}</button>
             <select value={dateFilter ?? ''} onChange={e => setDateFilter(e.target.value ? Number(e.target.value) : null)} style={{ padding: '8px 12px', borderRadius: '9px', border: 'none', background: dateFilter ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.04)', color: dateFilter ? '#38bdf8' : '#52525b', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', appearance: 'none' }}>
               {DATE_FILTERS.map(f => <option key={f.label} value={f.days ?? ''} style={{ background: '#0c0c0e', color: 'white' }}>📅 {f.label}</option>)}
             </select>
           </div>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <button onClick={() => { window.open('/about.html', '_blank'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>ℹ️ O nas</button>
-            <button onClick={() => { navigate('/feed'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>📰 Feed</button>
+            <button onClick={() => { window.open('/about.html', '_blank'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{t('about')}</button>
+            <button onClick={() => { navigate('/feed'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{t('feed')}</button>
             <button onClick={() => { navigate('/profile'); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>👤 Profil</button>
             {isAdmin && <button onClick={() => { setShowAdmin(true); setMenuOpen(false) }} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(249,115,22,0.1)', color: '#f97316', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>⚡ Admin</button>}
-            <button onClick={handleLogout} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>Wyloguj</button>
+            
+            <button onClick={() => setLang(getLang() === 'pl' ? 'en' : 'pl')} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#a1a1aa', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{getLang() === 'pl' ? '🌐 EN' : '🌐 PL'}</button>
+            <button onClick={handleLogout} style={{ padding: '10px 12px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.04)', color: '#71717a', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', textAlign: 'left' }}>{t('logout')}</button>
           </div>
         </div>
       )}
 
       {/* HINT */}
       <div style={{ position: 'absolute', bottom: '28px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, background: 'rgba(9,9,11,0.88)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9999px', padding: '9px 18px', color: '#71717a', fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-        {searchQuery ? `🔍 ${filteredSpots.length} wyników` : dateFilter ? `📅 Ostatnie ${dateFilter} dni — ${filteredSpots.length} prac` : showHeatmap ? `🌡️ Heatmapa — ${spots.length} prac` : '🎨 Dotknij mapę żeby dodać pracę'}
+        {searchQuery ? `🔍 ${filteredSpots.length} ${t('results')}` : dateFilter ? `${t('hintDate')} ${dateFilter} ${t('hintDays')} ${filteredSpots.length} ${t('hintSpots')}` : showHeatmap ? `${t('hintHeat')} ${spots.length} ${t('hintSpots')}` : t('hint')}
       </div>
 
       {/* MAPA */}

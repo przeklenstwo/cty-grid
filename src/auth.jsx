@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useState, useRef, useEffect } from 'react'
 import { MapContainer, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -26,32 +27,32 @@ export default function Auth({ onLogin }) {
   }
 
   async function handleLogin() {
-    if (!captchaToken) { setError('Potwierdź że nie jesteś botem'); return }
+    if (!captchaToken) { setError(t('confirmNotBot')); return }
     setLoading(true); setError(''); setInfo('')
 
     let loginEmail = identifier.trim()
     if (!loginEmail.includes('@')) {
       const { data, error: fnError } = await supabase.rpc('get_email_by_username', { p_username: loginEmail })
-      if (fnError || !data) { setError('Nie znaleziono użytkownika'); setLoading(false); resetCaptcha(); return }
+      if (fnError || !data) { setError(t('userNotFound')); setLoading(false); resetCaptcha(); return }
       loginEmail = data
     }
 
     const { data, error: loginError } = await supabase.auth.signInWithPassword({
       email: loginEmail, password, options: { captchaToken },
     })
-    if (loginError) { setError('Zły login lub hasło'); setLoading(false); resetCaptcha(); return }
+    if (loginError) { setError(t('wrongCredentials')); setLoading(false); resetCaptcha(); return }
     onLogin(data.user)
     setLoading(false)
   }
 
   async function handleRegister() {
-    if (!captchaToken) { setError('Potwierdź że nie jesteś botem'); return }
-    if (!username.trim()) { setError('Podaj nazwę użytkownika'); return }
-    if (password.length < 6) { setError('Hasło musi mieć min. 6 znaków'); return }
+    if (!captchaToken) { setError(t('confirmNotBot')); return }
+    if (!username.trim()) { setError(t('enterUsername')); return }
+    if (password.length < 6) { setError(t('passwordTooShort')); return }
     setLoading(true); setError(''); setInfo('')
 
     const { data: existing } = await supabase.from('profiles').select('id').eq('username', username.trim()).single()
-    if (existing) { setError('Ta nazwa jest już zajęta'); setLoading(false); resetCaptcha(); return }
+    if (existing) { setError(t('usernameTaken')); setLoading(false); resetCaptcha(); return }
 
     const loginEmail = email.trim() || `${username.trim().toLowerCase()}_${Date.now()}@cty-grid.local`
 
@@ -70,14 +71,14 @@ export default function Auth({ onLogin }) {
   }
 
   async function handleReset() {
-    if (!captchaToken) { setError('Potwierdź że nie jesteś botem'); return }
+    if (!captchaToken) { setError(t('confirmNotBot')); return }
     setLoading(true); setError(''); setInfo('')
 
     let resetEmail = identifier.trim()
     if (!resetEmail.includes('@')) {
       const { data, error: fnError } = await supabase.rpc('get_email_by_username', { p_username: resetEmail })
-      if (fnError || !data) { setError('Nie znaleziono użytkownika lub brak emaila'); setLoading(false); resetCaptcha(); return }
-      if (data.endsWith('@cty-grid.local')) { setError('Ten użytkownik nie podał emaila — reset niedostępny'); setLoading(false); resetCaptcha(); return }
+      if (fnError || !data) { setError(t('userNotFoundEmail')); setLoading(false); resetCaptcha(); return }
+      if (data.endsWith('@cty-grid.local')) { setError(t('noEmailReset')); setLoading(false); resetCaptcha(); return }
       resetEmail = data
     }
 
@@ -85,7 +86,7 @@ export default function Auth({ onLogin }) {
       redirectTo: `${window.location.origin}/reset-password`,
     })
     if (resetError) { setError(resetError.message); setLoading(false); resetCaptcha(); return }
-    setInfo('Link do resetowania hasła został wysłany na email.')
+    setInfo(t('resetSent'))
     setLoading(false)
     // NIE resetujemy captchy po sukcesie — zostaje zaznaczona
   }
@@ -116,7 +117,7 @@ export default function Auth({ onLogin }) {
           <div style={{ marginBottom: '28px' }}>
             <h1 style={{ color: 'white', fontWeight: 700, fontSize: '2rem', letterSpacing: '0.06em', margin: 0 }}>CTY-GRID</h1>
             <p style={{ color: '#52525b', fontSize: '0.85rem', marginTop: '6px' }}>
-              {mode === 'login' ? 'Zaloguj się do swojego konta' : mode === 'register' ? 'Dołącz do społeczności' : 'Zresetuj hasło'}
+              {mode === 'login' ? t('loginTitle') : mode === 'register' ? t('registerTitle') : t('resetTitle')}
             </p>
           </div>
 
@@ -124,7 +125,7 @@ export default function Auth({ onLogin }) {
             <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '4px' }}>
               {['login', 'register'].map(m => (
                 <button key={m} onClick={() => { setMode(m); setError(''); setInfo(''); resetCaptcha() }} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', background: mode === m ? 'rgba(255,255,255,0.1)' : 'none', color: mode === m ? 'white' : '#52525b', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
-                  {m === 'login' ? 'Logowanie' : 'Rejestracja'}
+                  {m === 'login' ? t('loginTab') : t('registerTab')}
                 </button>
               ))}
             </div>
@@ -134,26 +135,26 @@ export default function Auth({ onLogin }) {
 
             {mode === 'login' && (
               <>
-                <input style={input} placeholder="Email lub nazwa użytkownika *" value={identifier} onChange={e => setIdentifier(e.target.value)} />
-                <input style={input} placeholder="Hasło *" type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && captchaToken && handleLogin()} />
-                <button onClick={() => { setMode('reset'); setError(''); setInfo(''); resetCaptcha() }} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: '0.8rem', cursor: 'pointer', textAlign: 'right', fontFamily: 'Space Grotesk, sans-serif', padding: '0' }}>Zapomniałem hasła →</button>
+                <input style={input} placeholder={t('emailOrUsername')} value={identifier} onChange={e => setIdentifier(e.target.value)} />
+                <input style={input} placeholder={t('password')} type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && captchaToken && handleLogin()} />
+                <button onClick={() => { setMode('reset'); setError(''); setInfo(''); resetCaptcha() }} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: '0.8rem', cursor: 'pointer', textAlign: 'right', fontFamily: 'Space Grotesk, sans-serif', padding: '0' }}>{t('forgotPassword')}</button>
               </>
             )}
 
             {mode === 'register' && (
               <>
-                <input style={input} placeholder="Nazwa użytkownika *" value={username} onChange={e => setUsername(e.target.value)} />
-                <input style={input} placeholder="Email (opcjonalnie — do resetu hasła)" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                <input style={input} placeholder={t('username')} value={username} onChange={e => setUsername(e.target.value)} />
+                <input style={input} placeholder={t('emailOptional')} type="email" value={email} onChange={e => setEmail(e.target.value)} />
                 {!email && <p style={{ color: '#52525b', fontSize: '0.75rem', margin: '-4px 0' }}>⚠️ Bez emaila nie możesz zresetować hasła</p>}
-                <input style={input} placeholder="Hasło * (min. 6 znaków)" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                <input style={input} placeholder="Discord (opcjonalnie)" value={discord} onChange={e => setDiscord(e.target.value)} />
+                <input style={input} placeholder={t('passwordMin')} type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                <input style={input} placeholder={t('discordOptional')} value={discord} onChange={e => setDiscord(e.target.value)} />
               </>
             )}
 
             {mode === 'reset' && (
               <>
-                <input style={input} placeholder="Email lub nazwa użytkownika *" value={identifier} onChange={e => setIdentifier(e.target.value)} onKeyDown={e => e.key === 'Enter' && captchaToken && handleReset()} />
-                <button onClick={() => { setMode('login'); setError(''); setInfo(''); resetCaptcha() }} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: '0.8rem', cursor: 'pointer', textAlign: 'left', fontFamily: 'Space Grotesk, sans-serif', padding: '0' }}>← Wróć do logowania</button>
+                <input style={input} placeholder={t('emailOrUsername')} value={identifier} onChange={e => setIdentifier(e.target.value)} onKeyDown={e => e.key === 'Enter' && captchaToken && handleReset()} />
+                <button onClick={() => { setMode('login'); setError(''); setInfo(''); resetCaptcha() }} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: '0.8rem', cursor: 'pointer', textAlign: 'left', fontFamily: 'Space Grotesk, sans-serif', padding: '0' }}>{t('backToLogin')}</button>
               </>
             )}
 
@@ -192,7 +193,7 @@ export default function Auth({ onLogin }) {
                 transition: 'all 0.2s',
               }}
             >
-              {loading ? '...' : mode === 'login' ? 'Zaloguj się →' : mode === 'register' ? 'Zarejestruj się →' : 'Wyślij link resetujący →'}
+              {loading ? '...' : mode === 'login' ? t('loginBtn') : mode === 'register' ? t('registerBtn') : t('resetBtn')}
             </button>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
@@ -90,7 +91,7 @@ export default function FeedPage() {
 
       {/* NAVBAR */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>← Mapa</button>
+        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('map')}</button>
         <h1 style={{ color: 'white', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>CTY-GRID</h1>
         <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>👤</button>
       </div>
@@ -99,7 +100,7 @@ export default function FeedPage() {
 
         {/* TABS */}
         <div style={{ display: 'flex', gap: '4px', marginBottom: '20px' }}>
-          {[{ id: 'feed', label: `📰 Feed (${feed.length})` }, { id: 'discover', label: `🔭 Odkryj (${suggestions.length})` }].map(t => (
+          {[{ id: 'feed', label: `${t('feedTab')} (${feed.length})` }, { id: 'discover', label: `${t('discoverTab')} (${suggestions.length})` }].map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: '9px', borderRadius: '9px', border: 'none', cursor: 'pointer', background: tab === t.id ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.04)', color: tab === t.id ? '#f97316' : '#71717a', fontWeight: 600, fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif', outline: tab === t.id ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>{t.label}</button>
           ))}
         </div>
@@ -111,7 +112,7 @@ export default function FeedPage() {
               <div style={{ textAlign: 'center', padding: '60px 20px' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📰</div>
                 <p style={{ color: '#52525b', fontSize: '0.88rem', marginBottom: '16px' }}>Obserwuj innych żeby zobaczyć ich prace tutaj</p>
-                <button onClick={() => setTab('discover')} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>🔭 Odkryj userów</button>
+                <button onClick={() => setTab('discover')} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>{t('discoverUsers')}</button>
               </div>
             ) : feed.map(spot => (
               <div key={spot.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden', marginBottom: '14px' }}>
@@ -119,7 +120,7 @@ export default function FeedPage() {
                   <Avatar profile={spot.profiles} size={36} />
                   <div style={{ flex: 1 }}>
                     <button onClick={() => navigate(`/profile/${spot.user_id}`)} style={{ background: 'none', border: 'none', color: RANKS[spot.profiles?.rank ?? 0]?.color || '#71717a', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', padding: 0, fontFamily: 'Space Grotesk, sans-serif' }}>{spot.profiles?.username || 'Anonim'}</button>
-                    <p style={{ color: '#3f3f46', fontSize: '0.7rem', margin: 0 }}>{new Date(spot.created_at).toLocaleString('pl-PL')}</p>
+                    <p style={{ color: '#3f3f46', fontSize: '0.7rem', margin: 0 }}>{new Date(spot.created_at).toLocaleString('en-GB')}</p>
                   </div>
                   {spot.status === 'buffed' && <span style={{ fontSize: '0.68rem', padding: '2px 7px', borderRadius: '9999px', background: 'rgba(113,113,122,0.15)', color: '#71717a' }}>🪣</span>}
                 </div>
@@ -130,7 +131,7 @@ export default function FeedPage() {
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
                     {(spot.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
                   </div>
-                  <button onClick={() => setSelectedSpot(spot)} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>💬 Komentarze →</button>
+                  <button onClick={() => setSelectedSpot(spot)} style={{ background: 'none', border: 'none', color: '#52525b', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0 }}>{t('commentsLink')}</button>
                 </div>
               </div>
             ))}
@@ -156,7 +157,7 @@ export default function FeedPage() {
                     <span style={{ marginLeft: '7px', padding: '1px 6px', borderRadius: '9999px', fontSize: '0.63rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color }}>{rInfo.label}</span>
                   </div>
                   <button onClick={() => toggleFollow(user.id)} style={{ padding: '7px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif', background: isFollowingUser ? 'rgba(255,255,255,0.08)' : '#f97316', color: isFollowingUser ? '#71717a' : 'white', whiteSpace: 'nowrap' }}>
-                    {isFollowingUser ? '✓ Obserwujesz' : '+ Obserwuj'}
+                    {isFollowingUser ? t('unfollow') : t('follow')}
                   </button>
                 </div>
               )

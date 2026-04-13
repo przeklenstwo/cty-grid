@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
@@ -25,10 +26,10 @@ export default function InvitePage() {
 
   async function handleAccept() {
     if (!currentUser) { navigate(`/register?invite=${code}`); return }
-    if (invite.used_by) { setError('To zaproszenie zostało już użyte'); return }
+    if (invite.used_by) { setError(t('inviteUsed')); return }
 
     const { data: profile } = await supabase.from('profiles').select('id').eq('id', currentUser.id).single()
-    if (!profile) { setError('Nie znaleziono profilu'); return }
+    if (!profile) { setError(t('profileNotFoundInvite')); return }
 
     await supabase.from('invites').update({ used_by: currentUser.id, used_at: new Date().toISOString() }).eq('code', code)
     navigate('/')
@@ -48,19 +49,19 @@ export default function InvitePage() {
         {!invite ? (
           <div style={{ marginTop: '24px' }}>
             <p style={{ color: '#f87171', fontSize: '0.9rem' }}>❌ Nieprawidłowe lub wygasłe zaproszenie.</p>
-            <button onClick={() => navigate('/')} style={{ marginTop: '16px', padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>← Wróć</button>
+            <button onClick={() => navigate('/')} style={{ marginTop: '16px', padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>{t('back')}</button>
           </div>
         ) : invite.used_by ? (
           <div style={{ marginTop: '24px' }}>
             <p style={{ color: '#f87171', fontSize: '0.9rem' }}>❌ To zaproszenie zostało już użyte.</p>
-            <button onClick={() => navigate('/')} style={{ marginTop: '16px', padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>← Wróć</button>
+            <button onClick={() => navigate('/')} style={{ marginTop: '16px', padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>{t('back')}</button>
           </div>
         ) : (
           <div style={{ marginTop: '24px' }}>
             <div style={{ padding: '16px', borderRadius: '14px', background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.2)', marginBottom: '24px' }}>
               <p style={{ color: '#f97316', fontWeight: 700, fontSize: '0.9rem', margin: '0 0 6px' }}>🎨 Masz zaproszenie!</p>
               <p style={{ color: '#a1a1aa', fontSize: '0.85rem', margin: 0 }}>
-                <strong style={{ color: 'white' }}>{invite.profiles?.username || 'Ktoś'}</strong> zaprasza Cię do CTY-GRID — prywatnej mapy społeczności.
+                <strong style={{ color: 'white' }}>{invite.profiles?.username || 'Ktoś'}</strong> {invite.profiles?.username || 'Someone'} {t('invitesYou')}
               </p>
             </div>
 
@@ -76,7 +77,7 @@ export default function InvitePage() {
                   Zarejestruj się →
                 </button>
                 <p style={{ color: '#52525b', fontSize: '0.8rem', textAlign: 'center', margin: 0 }}>
-                  Masz konto? <span onClick={() => navigate(`/?invite=${code}&login=1`)} style={{ color: '#f97316', cursor: 'pointer' }}>Zaloguj się</span>
+                  Masz konto? <span onClick={() => navigate(`/?invite=${code}&login=1`)} style={{ color: '#f97316', cursor: 'pointer' }}>{t('loginLink')}</span>
                 </p>
               </div>
             )}

@@ -1,13 +1,16 @@
+import { t } from './i18n'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { notifyAdmin } from './notify'
 
-const COMMENT_TYPES = [
-  { value: 'normal', label: '💬 Komentarz', minRank: 0 },
-  { value: 'hazard', label: '⚠️ Przypał',   minRank: 2 },
-  { value: 'tip',    label: '💡 Tip',        minRank: 1 },
-]
+function getCommentTypes() {
+  return [
+    { value: 'normal', label: t('comment'), minRank: 0 },
+    { value: 'hazard', label: t('incident'), minRank: 2 },
+    { value: 'tip',    label: t('tip'), minRank: 1 },
+  ]
+}
 
 const RANKS = {
   0: { label: 'Newbie',  color: '#71717a', icon: '👶' },
@@ -179,7 +182,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
     const map = {
       hazard:      { label: '⚠️ Przypał', bg: 'rgba(239,68,68,0.12)',   color: '#f87171' },
       tip:         { label: '💡 Tip',     bg: 'rgba(234,179,8,0.1)',    color: '#eab308' },
-      buff_report: { label: '🪣 Buff',    bg: 'rgba(113,113,122,0.15)', color: '#a1a1aa' },
+      buff_report: { label: t('buffReport'),    bg: 'rgba(113,113,122,0.15)', color: '#a1a1aa' },
     }
     const m = map[type]; if (!m) return null
     return <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: m.bg, color: m.color }}>{m.label}</span>
@@ -254,7 +257,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
     )
   }
 
-  const availableTypes = COMMENT_TYPES.filter(t => userRank >= t.minRank || isAdmin)
+  const availableTypes = getCommentTypes().filter(t => userRank >= t.minRank || isAdmin)
   const totalReactions = Object.values(reactions).reduce((sum, arr) => sum + arr.length, 0)
 
   return (
@@ -285,7 +288,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
           ) : (
             <div style={{ color: '#3f3f46', fontSize: '3rem', textAlign: 'center' }}>
               <div>{isBuffed ? '🪣' : '🎨'}</div>
-              <div style={{ fontSize: '0.85rem', marginTop: '8px', color: '#52525b' }}>{isBuffed ? 'Zamalowane' : 'Brak zdjęć'}</div>
+              <div style={{ fontSize: '0.85rem', marginTop: '8px', color: '#52525b' }}>{isBuffed ? t('buffed') : t('noPhotos')}</div>
             </div>
           )}
         </div>
@@ -354,25 +357,25 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
             {/* Buff akcje */}
             <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
               {isAdmin && (isBuffed
-                ? <button onClick={handleAdminUnbuff} style={{ padding: '5px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(34,197,94,0.12)', color: '#22c55e', outline: '1px solid rgba(34,197,94,0.3)', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>✓ Odznacz buff</button>
-                : <button onClick={handleAdminBuff} style={{ padding: '5px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.1)', color: '#a1a1aa', outline: '1px solid rgba(113,113,122,0.25)', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>🪣 Oznacz BUFFED</button>
+                ? <button onClick={handleAdminUnbuff} style={{ padding: '5px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(34,197,94,0.12)', color: '#22c55e', outline: '1px solid rgba(34,197,94,0.3)', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('unmarkBuffed')}</button>
+                : <button onClick={handleAdminBuff} style={{ padding: '5px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.1)', color: '#a1a1aa', outline: '1px solid rgba(113,113,122,0.25)', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('markBuffed')}</button>
               )}
-              {!isAdmin && !isBuffed && !buffSent && !confirmBuff && <button onClick={() => setConfirmBuff(true)} style={{ padding: '5px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.07)', color: '#52525b', outline: '1px solid rgba(113,113,122,0.15)', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>🪣 Zgłoś Buff</button>}
+              {!isAdmin && !isBuffed && !buffSent && !confirmBuff && <button onClick={() => setConfirmBuff(true)} style={{ padding: '5px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.07)', color: '#52525b', outline: '1px solid rgba(113,113,122,0.15)', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('reportBuff')}</button>}
               {confirmBuff && (
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span style={{ color: '#71717a', fontSize: '0.73rem' }}>Na pewno?</span>
-                  <button onClick={handleReportBuff} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.15)', color: '#a1a1aa', fontWeight: 700, fontSize: '0.73rem', fontFamily: 'Space Grotesk, sans-serif' }}>Tak</button>
-                  <button onClick={() => setConfirmBuff(false)} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'none', color: '#52525b', fontWeight: 600, fontSize: '0.73rem', fontFamily: 'Space Grotesk, sans-serif' }}>Nie</button>
+                  <span style={{ color: '#71717a', fontSize: '0.73rem' }}>{t('confirmBuff')}</span>
+                  <button onClick={handleReportBuff} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(113,113,122,0.15)', color: '#a1a1aa', fontWeight: 700, fontSize: '0.73rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('yes')}</button>
+                  <button onClick={() => setConfirmBuff(false)} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'none', color: '#52525b', fontWeight: 600, fontSize: '0.73rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('no')}</button>
                 </div>
               )}
-              {buffSent && <span style={{ color: '#71717a', fontSize: '0.75rem' }}>✅ Zgłoszono</span>}
+              {buffSent && <span style={{ color: '#71717a', fontSize: '0.75rem' }}>{t('buffReported')}</span>}
             </div>
 
             {confirmDelete && (
               <div style={{ marginTop: '10px', padding: '12px', borderRadius: '10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <p style={{ color: '#f87171', fontSize: '0.83rem', marginBottom: '8px', fontWeight: 600 }}>⚠️ Usunąć tę pracę?</p>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: '#a1a1aa', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600, fontSize: '0.82rem' }}>Anuluj</button>
+                  <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: '#a1a1aa', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600, fontSize: '0.82rem' }}>{t('cancel')}</button>
                   <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: '0.82rem', opacity: deleting ? 0.6 : 1 }}>{deleting ? 'Usuwanie...' : '🗑 Tak, usuń'}</button>
                 </div>
               </div>
@@ -398,7 +401,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
           <div style={{ padding: '10px 20px 16px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
             {sent ? (
               <div style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '10px', padding: '10px', color: '#22c55e', fontSize: '0.85rem', textAlign: 'center' }}>
-                {userRank >= 1 ? '✅ Komentarz dodany!' : '✅ Wysłany — czeka na zatwierdzenie'}
+                {userRank >= 1 ? t('commentAdded') : '✅ Wysłany — czeka na zatwierdzenie'}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
@@ -410,7 +413,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <input style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }} placeholder="Napisz komentarz..." value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendComment()} />
+                  <input style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }} placeholder={t('commentPlaceholder')} value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendComment()} />
                   <button onClick={handleSendComment} disabled={loading || !newComment.trim()} style={{ padding: '10px 18px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: !newComment.trim() ? 0.4 : 1 }}>→</button>
                 </div>
               </div>

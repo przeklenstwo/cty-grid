@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
@@ -198,7 +199,7 @@ export default function ProfilePage() {
     setSaving(true); setSaveError('')
     if (editUsername !== profile.username) {
       const { data: existing } = await supabase.from('profiles').select('id').eq('username', editUsername).single()
-      if (existing) { setSaveError('Ta nazwa jest już zajęta'); setSaving(false); return }
+      if (existing) { setSaveError(t('usernameTakenErr')); setSaving(false); return }
     }
     const { error } = await supabase.from('profiles').update({ username: editUsername.trim(), discord: editDiscord.trim() || null, bio: editBio.trim() || null }).eq('id', profile.id)
     if (error) { setSaveError(error.message); setSaving(false); return }
@@ -208,8 +209,8 @@ export default function ProfilePage() {
 
   async function handleChangePassword() {
     setPwError(''); setPwSuccess(false)
-    if (newPw.length < 6) { setPwError('Hasło musi mieć min. 6 znaków'); return }
-    if (newPw !== confirmPw) { setPwError('Hasła nie są identyczne'); return }
+    if (newPw.length < 6) { setPwError(t('passwordTooShort')); return }
+    if (newPw !== confirmPw) { setPwError(t('passwordMismatch')); return }
     setChangingPw(true)
     const { error } = await supabase.auth.updateUser({ password: newPw })
     if (error) { setPwError(error.message); setChangingPw(false); return }
@@ -251,7 +252,7 @@ export default function ProfilePage() {
 
       {/* NAVBAR */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(9,9,11,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>← Mapa</button>
+        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>{t('map')}</button>
         <h1 style={{ color: 'white', fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>CTY-GRID</h1>
         <button onClick={() => navigate('/feed')} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif' }}>📰</button>
       </div>
@@ -291,10 +292,10 @@ export default function ProfilePage() {
                 <div style={{ display: 'flex', gap: '7px', flexShrink: 0 }}>
                   {!isOwnProfile && currentUser && (
                     <button onClick={toggleFollow} disabled={togglingFollow} style={{ padding: '7px 14px', borderRadius: '9px', border: 'none', background: isFollowing ? 'rgba(255,255,255,0.08)' : '#f97316', color: isFollowing ? '#71717a' : 'white', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: togglingFollow ? 0.6 : 1 }}>
-                      {isFollowing ? 'Obserwujesz' : '+ Obserwuj'}
+                      {isFollowing ? t('unfollow') : t('follow')}
                     </button>
                   )}
-                  {isOwnProfile && <button onClick={() => { setEditUsername(profile.username); setEditDiscord(profile.discord || ''); setEditBio(profile.bio || ''); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', padding: '7px 12px', borderRadius: '9px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>✏️ Edytuj</button>}
+                  {isOwnProfile && <button onClick={() => { setEditUsername(profile.username); setEditDiscord(profile.discord || ''); setEditBio(profile.bio || ''); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a1a1aa', padding: '7px 12px', borderRadius: '9px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>{t('editBtn')}</button>}
                 </div>
               </div>
 
@@ -302,7 +303,7 @@ export default function ProfilePage() {
                 <div style={{ marginTop: '12px', padding: '12px', borderRadius: '12px', background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <img src={avatarPreview} alt="" style={{ width: '46px', height: '46px', borderRadius: '10px', objectFit: 'cover' }} />
                   <p style={{ color: '#a1a1aa', fontSize: '0.8rem', margin: 0, flex: 1 }}>Nowe zdjęcie profilowe</p>
-                  <button onClick={handleAvatarUpload} disabled={uploadingAvatar} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>{uploadingAvatar ? '...' : 'Zapisz'}</button>
+                  <button onClick={handleAvatarUpload} disabled={uploadingAvatar} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>{uploadingAvatar ? '...' : t('saveAvatar')}</button>
                   <button onClick={() => { setAvatarFile(null); setAvatarPreview(null) }} style={{ padding: '6px 10px', borderRadius: '8px', border: 'none', background: 'rgba(255,255,255,0.06)', color: '#71717a', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
                 </div>
               )}
@@ -310,7 +311,7 @@ export default function ProfilePage() {
               {allCrews.length > 0 && <div style={{ display: 'flex', gap: '5px', marginTop: '12px', flexWrap: 'wrap' }}>{allCrews.map(crew => <span key={crew} style={{ padding: '3px 12px', borderRadius: '9999px', fontSize: '0.78rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}</div>}
 
               <div className="profile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '14px' }}>
-                {[{ label: 'Prace', value: spots.length, color: '#f97316' }, { label: 'Public', value: publicSpots.length, color: '#22c55e' }, { label: 'Buffed', value: buffedSpots.length, color: '#71717a' }, { label: 'Komentarze', value: comments.length, color: '#38bdf8' }].map(stat => (
+                {[{ label: t('spotsCount'), value: spots.length, color: '#f97316' }, { label: t('publicCount'), value: publicSpots.length, color: '#22c55e' }, { label: t('buffedCount'), value: buffedSpots.length, color: '#71717a' }, { label: t('commentsCount'), value: comments.length, color: '#38bdf8' }].map(stat => (
                   <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '10px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <p style={{ color: stat.color, fontWeight: 700, fontSize: '1.4rem', margin: 0 }}>{stat.value}</p>
                     <p style={{ color: '#52525b', fontSize: '0.68rem', margin: '2px 0 0', fontWeight: 600 }}>{stat.label}</p>
@@ -333,24 +334,24 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
-                <input style={inp} placeholder="Nazwa użytkownika" value={editUsername} onChange={e => setEditUsername(e.target.value)} />
-                <input style={inp} placeholder="Discord (opcjonalnie)" value={editDiscord} onChange={e => setEditDiscord(e.target.value)} />
-                <textarea style={{ ...inp, minHeight: '70px', resize: 'vertical' }} placeholder="Bio (opcjonalnie)" value={editBio} onChange={e => setEditBio(e.target.value)} />
+                <input style={inp} placeholder={t('usernamePlaceholder')} value={editUsername} onChange={e => setEditUsername(e.target.value)} />
+                <input style={inp} placeholder={t('discordPlaceholder')} value={editDiscord} onChange={e => setEditDiscord(e.target.value)} />
+                <textarea style={{ ...inp, minHeight: '70px', resize: 'vertical' }} placeholder={t('bioPlaceholder')} value={editBio} onChange={e => setEditBio(e.target.value)} />
                 {saveError && <p style={{ color: '#f87171', fontSize: '0.8rem' }}>{saveError}</p>}
                 <div style={{ display: 'flex', gap: '9px' }}>
                   <button onClick={() => setEditMode(false)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: '#71717a', cursor: 'pointer', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>Anuluj</button>
-                  <button onClick={handleSaveProfile} disabled={saving} style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: saving ? 0.7 : 1 }}>{saving ? '...' : 'Zapisz'}</button>
+                  <button onClick={handleSaveProfile} disabled={saving} style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: saving ? 0.7 : 1 }}>{saving ? '...' : t('saveProfile')}</button>
                 </div>
 
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
-                  <button onClick={() => setShowPwForm(s => !s)} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0, fontWeight: 600 }}>🔑 {showPwForm ? 'Ukryj' : 'Zmień hasło'}</button>
+                  <button onClick={() => setShowPwForm(s => !s)} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: 0, fontWeight: 600 }}>🔑 {showPwForm ? t('hidePassword') : t('changePassword')}</button>
                   {showPwForm && (
                     <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                      <input style={inp} type="password" placeholder="Nowe hasło (min. 6 znaków)" value={newPw} onChange={e => setNewPw(e.target.value)} />
-                      <input style={inp} type="password" placeholder="Powtórz nowe hasło" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+                      <input style={inp} type="password" placeholder={t('newPasswordPlaceholder')} value={newPw} onChange={e => setNewPw(e.target.value)} />
+                      <input style={inp} type="password" placeholder={t('confirmPasswordPlaceholder')} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
                       {pwError && <p style={{ color: '#f87171', fontSize: '0.78rem' }}>{pwError}</p>}
                       {pwSuccess && <p style={{ color: '#22c55e', fontSize: '0.78rem' }}>✅ Hasło zmienione!</p>}
-                      <button onClick={handleChangePassword} disabled={changingPw} style={{ padding: '9px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', fontWeight: 600, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.83rem' }}>{changingPw ? '...' : 'Zmień hasło'}</button>
+                      <button onClick={handleChangePassword} disabled={changingPw} style={{ padding: '9px', borderRadius: '9px', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', fontWeight: 600, cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', fontSize: '0.83rem' }}>{changingPw ? '...' : t('changePasswordBtn')}</button>
                     </div>
                   )}
                 </div>
@@ -359,7 +360,7 @@ export default function ProfilePage() {
                   <p style={{ color: '#71717a', fontSize: '0.8rem', fontWeight: 600, marginBottom: '7px' }}>🔗 Zaproś znajomego</p>
                   {!inviteLink ? (
                     <button onClick={generateInvite} disabled={generatingInvite} style={{ padding: '8px 14px', borderRadius: '9px', border: 'none', background: 'rgba(249,115,22,0.12)', color: '#f97316', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', outline: '1px solid rgba(249,115,22,0.25)', opacity: generatingInvite ? 0.6 : 1 }}>
-                      {generatingInvite ? '...' : '🔗 Generuj link'}
+                      {generatingInvite ? '...' : t('generateInvite')}
                     </button>
                   ) : (
                     <div style={{ display: 'flex', gap: '5px' }}>
@@ -393,7 +394,7 @@ export default function ProfilePage() {
 
         {/* TABS */}
         <div className="profile-tabs" style={{ display: 'flex', gap: '4px', marginBottom: '16px' }}>
-          {[{ id: 'gallery', label: `🖼 Galeria (${gallerySource.length})` }, { id: 'activity', label: `⚡ Aktywność (${activity.length})` }, { id: 'leaderboard', label: '🏆 Ranking' }].map(t => (
+          {[{ id: 'gallery', label: `${t('gallery')} (${gallerySource.length})` }, { id: 'activity', label: `${t('activity')} (${activity.length})` }, { id: 'leaderboard', label: t('leaderboard') }].map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '8px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer', background: tab === t.id ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.04)', color: tab === t.id ? '#f97316' : '#71717a', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'Space Grotesk, sans-serif', outline: tab === t.id ? '1px solid rgba(249,115,22,0.35)' : 'none', whiteSpace: 'nowrap' }}>{t.label}</button>
           ))}
         </div>
@@ -421,7 +422,7 @@ export default function ProfilePage() {
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)', pointerEvents: 'none' }} />
                     <div style={{ padding: '8px 10px' }}>
                       <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 600, fontSize: '0.82rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.title}</p>
-                      <p style={{ color: '#3f3f46', fontSize: '0.65rem', marginTop: '3px', marginBottom: 0 }}>{new Date(spot.created_at).toLocaleDateString('pl-PL')}</p>
+                      <p style={{ color: '#3f3f46', fontSize: '0.65rem', marginTop: '3px', marginBottom: 0 }}>{new Date(spot.created_at).toLocaleDateString('en-GB')}</p>
                     </div>
                   </div>
                 ))}
@@ -443,9 +444,9 @@ export default function ProfilePage() {
                   {item.type === 'spot' ? (
                     <p style={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0 }}>Dodano: <span style={{ color: '#f97316' }}>{item.data.title}</span></p>
                   ) : (
-                    <p style={{ color: '#a1a1aa', fontSize: '0.85rem', margin: 0 }}>Komentarz do <span style={{ color: '#38bdf8' }}>{item.data.spots?.title || 'pracy'}</span></p>
+                    <p style={{ color: '#a1a1aa', fontSize: '0.85rem', margin: 0 }}>Komentarz do <span style={{ color: '#38bdf8' }}>{item.data.spots?.title || t('work')}</span></p>
                   )}
-                  <p style={{ color: '#3f3f46', fontSize: '0.68rem', marginTop: '3px' }}>{new Date(item.date).toLocaleString('pl-PL')}</p>
+                  <p style={{ color: '#3f3f46', fontSize: '0.68rem', marginTop: '3px' }}>{new Date(item.date).toLocaleString('en-GB')}</p>
                 </div>
               </div>
             ))}

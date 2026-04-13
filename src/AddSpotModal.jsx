@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import { notifyAdmin } from './notify'
@@ -21,18 +22,18 @@ function fuzzLocation(lat, lng, radiusMeters) {
 }
 
 const RADIUS_OPTIONS = [
-  { label: '📍 Dokładna', value: 0 },
+  { label: t('exact'), value: 0 },
   { label: '~100m', value: 100 },
   { label: '~200m', value: 200 },
   { label: '~500m', value: 500 },
 ]
 
 const VEHICLE_TYPES = [
-  { value: 'train', label: '🚂 Pociąg towarowy' },
-  { value: 'metro', label: '🚇 Metro' },
-  { value: 'tram',  label: '🚋 Tramwaj' },
-  { value: 'bus',   label: '🚌 Bus' },
-  { value: 'other', label: '🚛 Inne' },
+  { value: 'train', label: t('freightTrain') },
+  { value: 'metro', label: t('metro') },
+  { value: 'tram',  label: t('tram') },
+  { value: 'bus',   label: t('bus') },
+  { value: 'other', label: t('other') },
 ]
 
 const COLOR_PALETTE = [
@@ -75,7 +76,7 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
   }
 
   async function handleAddNewCrew() {
-    if (!newCrewName.trim()) { setCrewError('Podaj nazwę crew'); return }
+    if (!newCrewName.trim()) { setCrewError(t('enterCrewName')); return }
     setAddingCrew(true); setCrewError('')
     const name = newCrewName.trim().toUpperCase()
     const existing = allCrews.find(c => c.name === name)
@@ -101,7 +102,7 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
   }
 
   async function handleSubmit() {
-    if (!title.trim()) { setError('Tytuł jest wymagany'); return }
+    if (!title.trim()) { setError(t('titleRequired')); return }
     setLoading(true); setError('')
 
     const imageUrls = []
@@ -115,11 +116,11 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
         const { data: urlData } = supabase.storage.from('spot-images').getPublicUrl(fileName)
         imageUrls.push(urlData.publicUrl)
       } catch (err) {
-        setError('Błąd uploadu: ' + err.message); setLoading(false); setProgress(''); return
+        setError(t('uploadError') + ' ' + err.message); setLoading(false); setProgress(''); return
       }
     }
 
-    setProgress('Zapisywanie...')
+    setProgress(t('saving'))
     const { lat, lng } = isMoving ? coords : fuzzLocation(coords.lat, coords.lng, radiusMeters)
 
     const { error: insertError } = await supabase.from('spots').insert({
@@ -163,22 +164,22 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
           <div>
             <h2 style={{ color: 'white', fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>🎨 Nowa Praca</h2>
             <p style={{ color: '#52525b', fontSize: '0.75rem', marginTop: '2px', marginBottom: 0 }}>
-              {isMoving ? '🚂 Obiekt w ruchu — lokalizacja orientacyjna' : radiusMeters > 0 ? `📍 Rozmyta ~${radiusMeters}m` : `📍 ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`}
+              {isMoving ? t('movingLocation') : radiusMeters > 0 ? `${t('fuzzed')}${radiusMeters}m` : `📍 ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`}
             </p>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#71717a', cursor: 'pointer', borderRadius: '8px', width: '32px', height: '32px', fontSize: '1rem' }}>✕</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <input style={inp} placeholder="Nazwa pracy *" value={title} onChange={e => setTitle(e.target.value)} />
-          <textarea style={{ ...inp, minHeight: '72px', resize: 'vertical' }} placeholder="Opis, hashtagi (#wildstyle #throwup)..." value={description} onChange={e => setDescription(e.target.value)} />
+          <input style={inp} placeholder={t('spotName')} value={title} onChange={e => setTitle(e.target.value)} />
+          <textarea style={{ ...inp, minHeight: '72px', resize: 'vertical' }} placeholder={t('spotDesc')} value={description} onChange={e => setDescription(e.target.value)} />
 
           {/* OBIEKT W RUCHU */}
           <div style={{ borderRadius: '12px', border: isMoving ? '1px solid rgba(249,115,22,0.35)' : '1px solid rgba(255,255,255,0.07)', background: isMoving ? 'rgba(249,115,22,0.05)' : 'rgba(255,255,255,0.02)', padding: '14px', transition: 'all 0.2s' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMoving ? '12px' : 0 }}>
               <div>
                 <p style={{ color: isMoving ? '#f97316' : 'white', fontWeight: 600, fontSize: '0.88rem', margin: 0 }}>🚂 Obiekt w ruchu</p>
-                <p style={{ color: '#52525b', fontSize: '0.72rem', marginTop: '2px', marginBottom: 0 }}>{isMoving ? 'Nie pali spotu — lokalizacja orientacyjna!' : 'Pociąg, tramwaj, bus...'}</p>
+                <p style={{ color: '#52525b', fontSize: '0.72rem', marginTop: '2px', marginBottom: 0 }}>{isMoving ? t('movingObjectDesc') : t('movingObjectHint')}</p>
               </div>
               <div onClick={() => setIsMoving(m => !m)} style={{ width: '44px', height: '24px', borderRadius: '9999px', background: isMoving ? '#f97316' : '#27272a', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
                 <div style={{ position: 'absolute', top: '3px', left: isMoving ? '23px' : '3px', width: '18px', height: '18px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
@@ -197,17 +198,17 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
           <div style={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)', padding: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <p style={{ color: '#71717a', fontSize: '0.73rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>👥 Crew</p>
-              <button onClick={() => { setShowNewCrew(s => !s); setCrewError('') }} style={{ padding: '3px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: showNewCrew ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.06)', color: showNewCrew ? '#f97316' : '#71717a', fontSize: '0.72rem', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif', outline: showNewCrew ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>+ Nowe crew</button>
+              <button onClick={() => { setShowNewCrew(s => !s); setCrewError('') }} style={{ padding: '3px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: showNewCrew ? 'rgba(249,115,22,0.18)' : 'rgba(255,255,255,0.06)', color: showNewCrew ? '#f97316' : '#71717a', fontSize: '0.72rem', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif', outline: showNewCrew ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>{t('newCrew')}</button>
             </div>
             {showNewCrew && (
               <div style={{ marginBottom: '12px', padding: '12px', borderRadius: '10px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.15)' }}>
-                <input value={newCrewName} onChange={e => setNewCrewName(e.target.value.toUpperCase())} placeholder="Nazwa crew (np. TKO)" style={{ ...inp, marginBottom: '10px', background: 'rgba(255,255,255,0.06)' }} onKeyDown={e => e.key === 'Enter' && handleAddNewCrew()} />
+                <input value={newCrewName} onChange={e => setNewCrewName(e.target.value.toUpperCase())} placeholder={t('crewNamePlaceholder')} style={{ ...inp, marginBottom: '10px', background: 'rgba(255,255,255,0.06)' }} onKeyDown={e => e.key === 'Enter' && handleAddNewCrew()} />
                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
                   {COLOR_PALETTE.map(c => <div key={c} onClick={() => setNewCrewColor(c)} style={{ width: '22px', height: '22px', borderRadius: '6px', background: c, cursor: 'pointer', outline: newCrewColor === c ? '2px solid white' : '2px solid transparent', outlineOffset: '2px', transform: newCrewColor === c ? 'scale(1.2)' : 'scale(1)', transition: 'all 0.1s' }} />)}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#52525b', fontSize: '0.72rem' }}>Podgląd:</span>
+                    <span style={{ color: '#52525b', fontSize: '0.72rem' }}>{t('preview')}</span>
                     <span style={{ padding: '4px 14px', borderRadius: '9999px', background: newCrewColor, color: '#000', fontSize: '0.8rem', fontWeight: 700 }}>{newCrewName || 'CREW'}</span>
                   </div>
                   <button onClick={handleAddNewCrew} disabled={addingCrew} style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', opacity: addingCrew ? 0.6 : 1 }}>{addingCrew ? '...' : 'Dodaj ✔'}</button>
@@ -217,7 +218,7 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
             )}
             {selectedCrewObjs.length > 0 && (
               <div style={{ marginBottom: '8px' }}>
-                <p style={{ color: '#52525b', fontSize: '0.68rem', marginBottom: '5px' }}>Wybrane:</p>
+                <p style={{ color: '#52525b', fontSize: '0.68rem', marginBottom: '5px' }}>{t('selected')}</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {selectedCrewObjs.map(crew => <button key={crew.id} onClick={() => toggleCrew(crew.name)} style={{ padding: '5px 14px', borderRadius: '9999px', border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif', background: crew.color, color: '#000', display: 'flex', alignItems: 'center', gap: '5px' }}>{crew.name} <span style={{ opacity: 0.6, fontSize: '0.7rem' }}>✕</span></button>)}
                 </div>
@@ -225,19 +226,19 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
             )}
             {otherCrewObjs.length > 0 && (
               <div>
-                {selectedCrewObjs.length > 0 && <p style={{ color: '#3f3f46', fontSize: '0.68rem', marginBottom: '5px' }}>Dodaj więcej:</p>}
+                {selectedCrewObjs.length > 0 && <p style={{ color: '#3f3f46', fontSize: '0.68rem', marginBottom: '5px' }}>{t('addMore')}</p>}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {otherCrewObjs.map(crew => <button key={crew.id} onClick={() => toggleCrew(crew.name)} style={{ padding: '5px 14px', borderRadius: '9999px', border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif', background: 'rgba(255,255,255,0.05)', color: crew.color, outline: `1px solid ${crew.color}45`, transition: 'all 0.15s' }}>{crew.name}</button>)}
                 </div>
               </div>
             )}
-            {allCrews.length === 0 && !showNewCrew && <p style={{ color: '#3f3f46', fontSize: '0.8rem', textAlign: 'center', padding: '8px 0' }}>Brak crew — kliknij "+ Nowe crew"</p>}
+            {allCrews.length === 0 && !showNewCrew && <p style={{ color: '#3f3f46', fontSize: '0.8rem', textAlign: 'center', padding: '8px 0' }}>{t('noCrews')}</p>}
           </div>
 
           {/* RADIUS — tylko gdy nie w ruchu */}
           {!isMoving && (
             <div>
-              <p style={{ color: '#71717a', fontSize: '0.73rem', marginBottom: '7px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>🔒 Precyzja lokalizacji</p>
+              <p style={{ color: '#71717a', fontSize: '0.73rem', marginBottom: '7px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{t('locationPrecision')}</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {RADIUS_OPTIONS.map(opt => <button key={opt.value} onClick={() => setRadiusMeters(opt.value)} style={{ padding: '8px 4px', borderRadius: '8px', border: 'none', background: radiusMeters === opt.value ? '#f97316' : 'rgba(255,255,255,0.05)', color: radiusMeters === opt.value ? 'white' : '#71717a', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', transition: 'all 0.15s' }}>{opt.label}</button>)}
               </div>
@@ -267,8 +268,8 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
           {/* PUBLIC/PRIVATE */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
             <div>
-              <p style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem', margin: 0 }}>{isPublic ? '🌍 Public' : '🔒 Private'}</p>
-              <p style={{ color: '#52525b', fontSize: '0.73rem', marginTop: '1px', marginBottom: 0 }}>{isPublic ? 'Widoczna dla wszystkich' : 'Tylko Ty ją widzisz'}</p>
+              <p style={{ color: 'white', fontWeight: 600, fontSize: '0.88rem', margin: 0 }}>{isPublic ? t('publicLabel') : t('privateLabel')}</p>
+              <p style={{ color: '#52525b', fontSize: '0.73rem', marginTop: '1px', marginBottom: 0 }}>{isPublic ? t('publicDesc') : t('privateDesc')}</p>
             </div>
             <div onClick={() => setIsPublic(!isPublic)} style={{ width: '44px', height: '24px', borderRadius: '9999px', background: isPublic ? '#f97316' : '#27272a', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
               <div style={{ position: 'absolute', top: '3px', left: isPublic ? '23px' : '3px', width: '18px', height: '18px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
@@ -279,9 +280,9 @@ export default function AddSpotModal({ coords, onClose, onAdded, userId }) {
           {error && <p style={{ color: '#f87171', fontSize: '0.82rem' }}>⚠️ {error}</p>}
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-            <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: '#71717a', cursor: 'pointer', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>Anuluj</button>
+            <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: '#71717a', cursor: 'pointer', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif' }}>{t('cancel')}</button>
             <button onClick={handleSubmit} disabled={loading} style={{ flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: loading ? '#7c3d12' : '#f97316', color: 'white', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>
-              {loading ? 'Przetwarzanie...' : isMoving ? `Dodaj ${VEHICLE_TYPES.find(v => v.value === vehicleType)?.label.split(' ')[0]} 🚂` : 'Dodaj Pracę 🎨'}
+              {loading ? t('processing') : isMoving ? `Dodaj ${VEHICLE_TYPES.find(v => v.value === vehicleType)?.label.split(' ')[0]} 🚂` : t('addSpotBtn')}
             </button>
           </div>
         </div>
