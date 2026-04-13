@@ -1,11 +1,21 @@
 import { t } from './i18n'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { MapContainer, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from './supabaseClient'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
 
 const HCAPTCHA_SITE_KEY = 'ed8ee266-2288-47a0-afd2-fdf495063f88'
+
+const USERNAME_WHITELIST = /^[a-zA-Z0-9._-]{3,20}$/
+const USERNAME_BLACKLIST = /(?:jeb[aą]c|kurw[aey]|chuj|pizd[aey]|pierdol|spierdal|cwel|smiec|śmie[cć]|debil|idiot|kretyn|pojeb|szmata|frajer|sukinsyn|dziwka|fuck|shit|bitch|asshole|dick|cunt|whore|nigg(?:er|a))/i
+
+function validateUsername(name) {
+  if (!name) return 'Podaj nazwę użytkownika.'
+  if (!USERNAME_WHITELIST.test(name)) return 'Nazwa może zawierać tylko litery, cyfry, kropki, myślniki i podkreślenia (3–20 znaków).'
+  if (USERNAME_BLACKLIST.test(name)) return 'Ta nazwa użytkownika jest niedozwolona.'
+  return null
+}
 
 export default function Auth({ onLogin }) {
   const [mode, setMode]               = useState('login')
@@ -47,14 +57,18 @@ export default function Auth({ onLogin }) {
 
   async function handleRegister() {
     if (!captchaToken) { setError(t('confirmNotBot')); return }
-    if (!username.trim()) { setError(t('enterUsername')); return }
+
+    const usernameClean = username.trim()
+    const usernameError = validateUsername(usernameClean)
+    if (usernameError) { setError(usernameError); return }
+
     if (password.length < 6) { setError(t('passwordTooShort')); return }
     setLoading(true); setError(''); setInfo('')
 
-    const { data: existing } = await supabase.from('profiles').select('id').eq('username', username.trim()).single()
+    const { data: existing } = await supabase.from('profiles').select('id').eq('username', usernameClean).single()
     if (existing) { setError(t('usernameTaken')); setLoading(false); resetCaptcha(); return }
 
-    const loginEmail = email.trim() || `${username.trim().toLowerCase()}_${Date.now()}@cty-grid.local`
+    const loginEmail = email.trim() || `${usernameClean.toLowerCase()}_${Date.now()}@cty-grid.local`
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: loginEmail, password, options: { captchaToken },
@@ -62,7 +76,7 @@ export default function Auth({ onLogin }) {
     if (signUpError) { setError(signUpError.message); setLoading(false); resetCaptcha(); return }
 
     const { error: profileError } = await supabase.from('profiles').insert({
-      id: data.user.id, username: username.trim(), discord: discord || null, email_set: !!email.trim(),
+      id: data.user.id, username: usernameClean, discord: discord || null, email_set: !!email.trim(),
     })
     if (profileError) { setError(profileError.message); setLoading(false); resetCaptcha(); return }
 
@@ -88,7 +102,6 @@ export default function Auth({ onLogin }) {
     if (resetError) { setError(resetError.message); setLoading(false); resetCaptcha(); return }
     setInfo(t('resetSent'))
     setLoading(false)
-    // NIE resetujemy captchy po sukcesie — zostaje zaznaczona
   }
 
   const input = {
@@ -144,6 +157,9 @@ export default function Auth({ onLogin }) {
             {mode === 'register' && (
               <>
                 <input style={input} placeholder={t('username')} value={username} onChange={e => setUsername(e.target.value)} />
+                {username && validateUsername(username.trim()) && (
+                  <p style={{ color: '#f87171', fontSize: '0.75rem', margin: '-4px 0' }}>⚠️ {validateUsername(username.trim())}</p>
+                )}
                 <input style={input} placeholder={t('emailOptional')} type="email" value={email} onChange={e => setEmail(e.target.value)} />
                 {!email && <p style={{ color: '#52525b', fontSize: '0.75rem', margin: '-4px 0' }}>⚠️ Bez emaila nie możesz zresetować hasła</p>}
                 <input style={input} placeholder={t('passwordMin')} type="password" value={password} onChange={e => setPassword(e.target.value)} />
@@ -158,7 +174,6 @@ export default function Auth({ onLogin }) {
               </>
             )}
 
-            {/* hCaptcha + info o AdBlocku */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
               <HCaptcha
                 ref={captchaRef}
