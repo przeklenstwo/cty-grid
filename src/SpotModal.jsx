@@ -59,7 +59,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
       .from('profiles')
       .select('id, username, rank')
       .eq('id', spot.user_id)
-      .single()
+      .maybeSingle()
     setAuthor(data)
   }
 
