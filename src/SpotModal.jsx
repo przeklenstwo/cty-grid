@@ -141,14 +141,16 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
   }
 
   // ── DESKTOP: zdjęcie osobno po lewej, modal po prawej ───────────────────────
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '16px', padding: '24px 24px 24px 180px', fontFamily: 'Space Grotesk, sans-serif', pointerEvents: 'none' }}>
+  const maxH = Math.min(window.innerHeight * 0.88, 900)
 
-      {/* LEWY PANEL — zdjęcie */}
-      <div onClick={e => e.stopPropagation()} style={{ flex: '0 0 auto', width: 'min(44vw, 680px)', height: 'min(82vh, 860px)', background: '#000', borderRadius: '20px', overflow: 'hidden', position: 'relative', boxShadow: '0 40px 100px rgba(0,0,0,0.9)', border: '1px solid rgba(255,255,255,0.07)', pointerEvents: 'auto' }}>
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '24px', fontFamily: 'Space Grotesk, sans-serif' }}>
+
+      {/* LEWY PANEL — zdjęcie w naturalnych proporcjach */}
+      <div onClick={e => e.stopPropagation()} style={{ flex: '0 0 auto', maxHeight: `${maxH}px`, maxWidth: '65vw', background: '#000', borderRadius: '20px', overflow: 'hidden', position: 'relative', boxShadow: '0 40px 100px rgba(0,0,0,0.9)', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {imageList.length > 0 ? (
           <>
-            <img src={imageList[currentImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: isBuffed ? 'grayscale(100%) brightness(0.55)' : 'none', transition: 'filter 0.4s' }} />
+            <img src={imageList[currentImg]} alt="" style={{ maxHeight: `${maxH}px`, maxWidth: '65vw', width: 'auto', height: 'auto', display: 'block', filter: isBuffed ? 'grayscale(100%) brightness(0.55)' : 'none', transition: 'filter 0.4s' }} />
             {isBuffed && (
               <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(0,0,0,0.85)', borderRadius: '10px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>🪣</span>
@@ -176,7 +178,9 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
       </div>
 
       {/* PRAWY PANEL — info + komentarze */}
-      <div onClick={e => e.stopPropagation()} style={{ flex: '0 0 auto', width: 'min(38vw, 520px)', height: 'min(82vh, 860px)', background: '#0c0c0e', border: isBuffed ? '1px solid rgba(113,113,122,0.35)' : '1px solid rgba(255,255,255,0.09)', borderRadius: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.9)', pointerEvents: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ flex: '0 0 460px', height: `${maxH}px`, background: '#0c0c0e', border: isBuffed ? '1px solid rgba(113,113,122,0.35)' : '1px solid rgba(255,255,255,0.09)', borderRadius: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.9)', position: 'relative', pointerEvents: 'auto' }}>
+        {/* X button */}
+        <button onClick={onClose} style={{ position: 'absolute', top: '14px', right: '14px', zIndex: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#71717a', cursor: 'pointer', borderRadius: '8px', width: '34px', height: '34px', fontSize: '1rem', fontFamily: 'Space Grotesk, sans-serif' }}>✕</button>
         <InfoPanel {...{ spot, author, crewMap, isBuffed, isAdmin, isOwner, canDelete, confirmDelete, setConfirmDelete, deleting, handleDelete, handleAdminBuff, handleAdminUnbuff, confirmBuff, setConfirmBuff, buffSent, handleReportBuff, comments, availableTypes, commentType, setCommentType, newComment, setNewComment, handleSendComment, loading, sent, userRank, goToProfile, CommentTypeBadge, isMobile: false }} />
       </div>
     </div>
