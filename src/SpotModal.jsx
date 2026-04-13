@@ -148,7 +148,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
       <div onClick={e => e.stopPropagation()} style={{ flex: '0 0 auto', width: 'min(44vw, 680px)', height: 'min(82vh, 860px)', background: '#000', borderRadius: '20px', overflow: 'hidden', position: 'relative', boxShadow: '0 40px 100px rgba(0,0,0,0.9)', border: '1px solid rgba(255,255,255,0.07)', pointerEvents: 'auto' }}>
         {imageList.length > 0 ? (
           <>
-            <img src={imageList[currentImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: isBuffed ? 'grayscale(100%) brightness(0.55)' : 'none', transition: 'filter 0.4s' }} />
+            <img src={imageList[currentImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: isBuffed ? 'grayscale(100%) brightness(0.55)' : 'none', transition: 'filter 0.4s' }} />
             {isBuffed && (
               <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(0,0,0,0.85)', borderRadius: '10px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>🪣</span>
