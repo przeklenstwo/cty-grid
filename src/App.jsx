@@ -124,6 +124,7 @@ export default function App() {
   const [showAdmin, setShowAdmin]         = useState(false)
   const [isAdmin, setIsAdmin]             = useState(false)
   const [searchQuery, setSearchQuery]     = useState('')
+  const [userResults, setUserResults] = useState([])
   const [searchOpen, setSearchOpen]       = useState(false)
   const [menuOpen, setMenuOpen]           = useState(false)
   const searchRef                         = useRef(null)
@@ -145,6 +146,15 @@ export default function App() {
       if (u) fetchProfile(u.id)
       else { setProfile(null); setIsAdmin(false) }
     })
+    async function searchUsers(query) {
+  if (!query.trim() || query.length < 2) { setUserResults([]); return }
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, username, rank')
+    .ilike('username', `%${query.trim()}%`)
+    .limit(4)
+  setUserResults(data || [])
+}
     fetchSpots(); fetchCrews()
     return () => listener.subscription.unsubscribe()
   }, [])
@@ -246,32 +256,57 @@ export default function App() {
           {/* WYSZUKIWARKA */}
           <div style={{ position: 'relative', flexShrink: 0 }} ref={searchRef}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              {searchOpen && <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder={t('searchPlaceholder')} style={{ padding: '4px 12px', borderRadius: '9999px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', width: '180px' }} />}
+              {searchOpen && <input autoFocus value={searchQuery} onChange={e => { setSearchQuery(e.target.value); searchUsers(e.target.value) }} onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} placeholder={t('searchPlaceholder')} style={{ padding: '4px 12px', borderRadius: '9999px', border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.07)', color: 'white', fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', width: '180px' }} />}
               <button onClick={() => { setSearchOpen(s => !s); if (searchOpen) setSearchQuery('') }} style={{ padding: '4px 10px', borderRadius: '9999px', border: 'none', background: searchOpen || searchQuery ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)', color: searchOpen || searchQuery ? '#f97316' : '#52525b', cursor: 'pointer', fontSize: '0.85rem', outline: searchOpen ? '1px solid rgba(249,115,22,0.35)' : 'none' }}>🔍</button>
             </div>
-            {searchOpen && searchQuery && searchResults.length > 0 && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: 'rgba(12,12,14,0.98)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', width: '280px', zIndex: 2000, boxShadow: '0 20px 40px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
-                <p style={{ color: '#52525b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 14px 6px', margin: 0 }}>{filteredSpots.length} wyników</p>
-                {searchResults.map(spot => {
-                  const color = spot.crew_tags?.[0] ? (crewMap[spot.crew_tags[0]] || '#f97316') : '#f97316'
-                  return (
-                    <div key={spot.id} onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }} style={{ padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                    >
-                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: spot.status === 'buffed' ? '#4a4a4a' : color, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.title}</p>
-                        <div style={{ display: 'flex', gap: '4px', marginTop: '3px' }}>
-                          {(spot.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
-                        </div>
-                      </div>
-                      <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>→</span>
-                    </div>
-                  )
-                })}
+           {searchOpen && searchQuery && (searchResults.length > 0 || userResults.length > 0) && (
+  <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: 'rgba(12,12,14,0.98)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', width: '280px', zIndex: 2000, boxShadow: '0 20px 40px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+    
+    {userResults.length > 0 && (
+      <>
+        <p style={{ color: '#52525b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 14px 6px', margin: 0 }}>👤 Użytkownicy</p>
+        {userResults.map(u => {
+          const rankColors = { 0: '#71717a', 1: '#38bdf8', 2: '#a78bfa', 3: '#f97316' }
+          const rankIcons  = { 0: '👶', 1: '✏️', 2: '🎯', 3: '👑' }
+          return (
+            <div key={u.id} onClick={() => { navigate(`/profile/${u.id}`); setSearchOpen(false); setSearchQuery('') }} style={{ padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <span style={{ fontSize: '0.85rem' }}>{rankIcons[u.rank ?? 0]}</span>
+              <span style={{ color: rankColors[u.rank ?? 0], fontWeight: 700, fontSize: '0.85rem', flex: 1 }}>{u.username}</span>
+              <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>→</span>
+            </div>
+          )
+        })}
+      </>
+    )}
+
+    {searchResults.length > 0 && (
+      <>
+        <p style={{ color: '#52525b', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 14px 6px', margin: 0, borderTop: userResults.length > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>🎨 Prace ({filteredSpots.length})</p>
+        {searchResults.map(spot => {
+          const color = spot.crew_tags?.[0] ? (crewMap[spot.crew_tags[0]] || '#f97316') : '#f97316'
+          return (
+            <div key={spot.id} onClick={() => { setSelectedSpot(spot); setSearchOpen(false) }} style={{ padding: '10px 14px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: spot.status === 'buffed' ? '#4a4a4a' : color, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: spot.status === 'buffed' ? '#52525b' : 'white', fontWeight: 600, fontSize: '0.85rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.title}</p>
+                <div style={{ display: 'flex', gap: '4px', marginTop: '3px' }}>
+                  {(spot.crew_tags || []).map(crew => <span key={crew} style={{ fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: '9999px', background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
+                </div>
               </div>
-            )}
+              <span style={{ color: '#3f3f46', fontSize: '0.7rem' }}>→</span>
+            </div>
+          )
+        })}
+      </>
+    )}
+  </div>
+)}
           </div>
         </div>
 
