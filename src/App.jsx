@@ -410,3 +410,8 @@ export default function App() {
     </div>
   )
 }
+<button onClick={() => window.open('/about.html', '_blank')} style={{
+  background: 'none', border: '1px solid rgba(255,255,255,0.07)',
+  color: '#71717a', padding: '5px 11px', borderRadius: '8px',
+  cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
+}}>ℹ️ O nas</button>
