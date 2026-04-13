@@ -295,6 +295,11 @@ export default function App() {
             <span style={{ color: rankInfo.color, fontSize: '0.7rem', fontWeight: 700 }}>{rankInfo.label}</span>
             {nextRank && <span style={{ color: '#3f3f46', fontSize: '0.65rem' }}>{userSpotCount}/{nextRank.spotsNeeded}</span>}
           </div>
+          <button onClick={() => window.open('/about.html', '_blank')} style={{
+  background: 'none', border: '1px solid rgba(255,255,255,0.07)',
+  color: '#71717a', padding: '5px 11px', borderRadius: '8px',
+  cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
+}}>ℹ️ O nas</button>
           <button onClick={() => navigate('/feed')} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a', padding: '5px 11px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>📰 Feed</button>
           <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: '#a1a1aa', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif', padding: '4px 8px', borderRadius: '8px' }}
             onMouseEnter={e => e.target.style.color = 'white'} onMouseLeave={e => e.target.style.color = '#a1a1aa'}
