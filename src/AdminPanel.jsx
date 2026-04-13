@@ -2,6 +2,8 @@ import { t } from './i18n'
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 
+const SUPERADMIN_ID = '59c2b986-ad0d-4d95-ada4-a739016563f2'
+
 const RANKS = {
   0: { label: 'Newbie',  color: '#71717a', icon: '👶' },
   1: { label: 'Writer',  color: '#38bdf8', icon: '✏️' },
@@ -21,57 +23,107 @@ export default function AdminPanel({ onClose, onRefresh }) {
   const [spots, setSpots]       = useState([])
   const [users, setUsers]       = useState([])
   const [crews, setCrews]       = useState([])
+  const [admins, setAdmins]     = useState([])
   const [loading, setLoading]   = useState(true)
+  const [currentUserId, setCurrentUserId] = useState(null)
+  const [adminLevel, setAdminLevel] = useState(1)
 
   const [newCrewName, setNewCrewName]   = useState('')
   const [newCrewColor, setNewCrewColor] = useState('#f97316')
   const [crewError, setCrewError]       = useState('')
 
-  useEffect(() => { fetchAll() }, [])
+  const isSuperAdmin = currentUserId === SUPERADMIN_ID
 
-  async function fetchAll() {
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user?.id ?? null
+      setCurrentUserId(uid)
+      fetchAll(uid)
+    })
+  }, [])
+
+  async function fetchAll(uid) {
     setLoading(true)
-    const [c, s, u, cr] = await Promise.all([
+    const [c, s, u, cr, adm] = await Promise.all([
       supabase.from('comments').select('*, profiles(username, rank)').eq('status', 'pending').order('created_at', { ascending: false }),
       supabase.from('spots').select('id, title, status, is_public, image_url, description, crew_tags').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('crews').select('*').order('name'),
+      supabase.from('admins').select('user_id, level'),
     ])
     setComments(c.data || [])
     setSpots(s.data || [])
     setUsers(u.data || [])
     setCrews(cr.data || [])
+    setAdmins(adm.data || [])
+
+    if (uid) {
+      const myAdmin = (adm.data || []).find(a => a.user_id === uid)
+      setAdminLevel(uid === SUPERADMIN_ID ? 2 : (myAdmin?.level ?? 1))
+    }
     setLoading(false)
+  }
+
+  function getAdminLevel(userId) {
+    if (userId === SUPERADMIN_ID) return 2
+    return admins.find(a => a.user_id === userId)?.level ?? 0
+  }
+
+  function isAdmin(userId) {
+    return admins.some(a => a.user_id === userId) || userId === SUPERADMIN_ID
   }
 
   async function approveComment(id) {
     await supabase.from('comments').update({ status: 'approved' }).eq('id', id)
-    fetchAll()
+    fetchAll(currentUserId)
   }
 
   async function rejectComment(id) {
     await supabase.from('comments').delete().eq('id', id)
-    fetchAll()
+    fetchAll(currentUserId)
   }
 
   async function deleteSpot(id) {
     await supabase.from('spots').delete().eq('id', id)
-    onRefresh?.(); fetchAll()
+    onRefresh?.(); fetchAll(currentUserId)
   }
 
   async function buffSpot(id, buffed) {
     await supabase.from('spots').update({ status: buffed ? 'buffed' : 'approved' }).eq('id', id)
-    onRefresh?.(); fetchAll()
+    onRefresh?.(); fetchAll(currentUserId)
   }
 
   async function setUserRank(userId, rank) {
+    // Tylko superadmin może zmieniać rangi adminów
+    if (isAdmin(userId) && !isSuperAdmin) return
+    // Nikt nie może zdegradować superadmina
+    if (userId === SUPERADMIN_ID) return
     await supabase.from('profiles').update({ rank }).eq('id', userId)
-    fetchAll()
+    fetchAll(currentUserId)
   }
 
   async function toggleBan(userId, isBanned) {
+    // Nie można zbanować superadmina ani innego admina (chyba że jesteś superadminem)
+    if (userId === SUPERADMIN_ID) return
+    if (isAdmin(userId) && !isSuperAdmin) return
     await supabase.from('profiles').update({ is_banned: !isBanned }).eq('id', userId)
-    fetchAll()
+    fetchAll(currentUserId)
+  }
+
+  async function setAdminRole(userId, level) {
+    if (!isSuperAdmin) return
+    if (userId === SUPERADMIN_ID) return
+    if (level === 0) {
+      await supabase.from('admins').delete().eq('user_id', userId)
+    } else {
+      const existing = admins.find(a => a.user_id === userId)
+      if (existing) {
+        await supabase.from('admins').update({ level }).eq('user_id', userId)
+      } else {
+        await supabase.from('admins').insert({ user_id: userId, level })
+      }
+    }
+    fetchAll(currentUserId)
   }
 
   async function addCrew() {
@@ -79,17 +131,17 @@ export default function AdminPanel({ onClose, onRefresh }) {
     const { error } = await supabase.from('crews').insert({ name: newCrewName.trim().toUpperCase(), color: newCrewColor })
     if (error) { setCrewError(error.message); return }
     setNewCrewName(''); setCrewError('')
-    fetchAll()
+    fetchAll(currentUserId)
   }
 
   async function updateCrewColor(id, color) {
     await supabase.from('crews').update({ color }).eq('id', id)
-    onRefresh?.(); fetchAll()
+    onRefresh?.(); fetchAll(currentUserId)
   }
 
   async function deleteCrew(id) {
     await supabase.from('crews').delete().eq('id', id)
-    onRefresh?.(); fetchAll()
+    onRefresh?.(); fetchAll(currentUserId)
   }
 
   function TabBtn({ id, label, count }) {
@@ -135,7 +187,9 @@ export default function AdminPanel({ onClose, onRefresh }) {
           padding: '20px 26px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
           <div>
-            <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.15rem', margin: 0 }}>⚡ Panel Admina</h2>
+            <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.15rem', margin: 0 }}>
+              {isSuperAdmin ? '👑 Superadmin' : '⚡ Panel Admina'}
+            </h2>
             <p style={{ color: '#52525b', fontSize: '0.75rem', marginTop: '2px', marginBottom: 0 }}>
               {comments.length} komentarzy czeka
             </p>
@@ -156,45 +210,31 @@ export default function AdminPanel({ onClose, onRefresh }) {
           <TabBtn id="spots"    label="📍 Prace"       count={spots.length} />
           <TabBtn id="crews"    label="👥 Crew"         count={crews.length} />
           <TabBtn id="users"    label="🏅 Użytkownicy"  count={users.length} />
+          {isSuperAdmin && <TabBtn id="admins" label="⚡ Admini" />}
         </div>
 
         {/* Body */}
         <div style={{ overflowY: 'auto', padding: '16px 26px', flex: 1 }}>
           {loading ? (
             <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Ładowanie...</p>
+
           ) : tab === 'comments' ? (
             comments.length === 0
               ? <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>✅ Brak komentarzy</p>
               : comments.map(c => (
                 <div key={c.id} style={card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ color: '#f97316', fontWeight: 600, fontSize: '0.85rem' }}>
-                      {c.profiles?.username || '?'}
-                    </span>
-                    <span style={{
-                      fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 600,
-                      background: 'rgba(249,115,22,0.1)', color: '#f97316',
-                    }}>
-                      {c.comment_type || 'normal'}
-                    </span>
+                    <span style={{ color: '#f97316', fontWeight: 600, fontSize: '0.85rem' }}>{c.profiles?.username || '?'}</span>
+                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 600, background: 'rgba(249,115,22,0.1)', color: '#f97316' }}>{c.comment_type || 'normal'}</span>
                   </div>
                   <p style={{ color: '#d4d4d8', fontSize: '0.88rem', marginBottom: '10px' }}>{c.content}</p>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => approveComment(c.id)} style={{
-                      padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                      background: 'rgba(34,197,94,0.12)', color: '#22c55e',
-                      outline: '1px solid rgba(34,197,94,0.25)',
-                      fontWeight: 600, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif',
-                    }}>✓ Zatwierdź</button>
-                    <button onClick={() => rejectComment(c.id)} style={{
-                      padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                      background: 'rgba(239,68,68,0.1)', color: '#ef4444',
-                      outline: '1px solid rgba(239,68,68,0.22)',
-                      fontWeight: 600, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif',
-                    }}>✕ Odrzuć</button>
+                    <button onClick={() => approveComment(c.id)} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(34,197,94,0.12)', color: '#22c55e', outline: '1px solid rgba(34,197,94,0.25)', fontWeight: 600, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif' }}>✓ Zatwierdź</button>
+                    <button onClick={() => rejectComment(c.id)} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#ef4444', outline: '1px solid rgba(239,68,68,0.22)', fontWeight: 600, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif' }}>✕ Odrzuć</button>
                   </div>
                 </div>
               ))
+
           ) : tab === 'spots' ? (
             spots.length === 0
               ? <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Brak prac</p>
@@ -202,81 +242,32 @@ export default function AdminPanel({ onClose, onRefresh }) {
                 <div key={sp.id} style={card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                     <span style={{ color: 'white', fontWeight: 700, fontSize: '0.92rem' }}>{sp.title}</span>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{
-                        fontSize: '0.7rem', padding: '2px 8px', borderRadius: '9999px', fontWeight: 600,
-                        background: sp.status === 'buffed' ? 'rgba(113,113,122,0.15)' : 'rgba(34,197,94,0.1)',
-                        color: sp.status === 'buffed' ? '#71717a' : '#22c55e',
-                      }}>{sp.status === 'buffed' ? '🪣 buffed' : '✓ approved'}</span>
-                    </div>
+                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '9999px', fontWeight: 600, background: sp.status === 'buffed' ? 'rgba(113,113,122,0.15)' : 'rgba(34,197,94,0.1)', color: sp.status === 'buffed' ? '#71717a' : '#22c55e' }}>{sp.status === 'buffed' ? '🪣 buffed' : '✓ approved'}</span>
                   </div>
                   {sp.crew_tags?.length > 0 && (
                     <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                      {sp.crew_tags.map(t => (
-                        <span key={t} style={{
-                          fontSize: '0.72rem', padding: '2px 8px', borderRadius: '9999px',
-                          background: 'rgba(167,139,250,0.1)', color: '#a78bfa',
-                          border: '1px solid rgba(167,139,250,0.2)',
-                        }}>{t}</span>
-                      ))}
+                      {sp.crew_tags.map(t => <span key={t} style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '9999px', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.2)' }}>{t}</span>)}
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => buffSpot(sp.id, sp.status !== 'buffed')} style={{
-                      padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                      background: sp.status === 'buffed' ? 'rgba(34,197,94,0.1)' : 'rgba(113,113,122,0.1)',
-                      color: sp.status === 'buffed' ? '#22c55e' : '#a1a1aa',
-                      outline: `1px solid ${sp.status === 'buffed' ? 'rgba(34,197,94,0.25)' : 'rgba(113,113,122,0.2)'}`,
-                      fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
-                    }}>{sp.status === 'buffed' ? '✓ Odznacz buff' : '🪣 Buff'}</button>
-                    <button onClick={() => deleteSpot(sp.id)} style={{
-                      padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                      background: 'rgba(239,68,68,0.1)', color: '#ef4444',
-                      outline: '1px solid rgba(239,68,68,0.22)',
-                      fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
-                    }}>🗑 Usuń</button>
+                    <button onClick={() => buffSpot(sp.id, sp.status !== 'buffed')} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: sp.status === 'buffed' ? 'rgba(34,197,94,0.1)' : 'rgba(113,113,122,0.1)', color: sp.status === 'buffed' ? '#22c55e' : '#a1a1aa', outline: `1px solid ${sp.status === 'buffed' ? 'rgba(34,197,94,0.25)' : 'rgba(113,113,122,0.2)'}`, fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>{sp.status === 'buffed' ? '✓ Odznacz buff' : '🪣 Buff'}</button>
+                    <button onClick={() => deleteSpot(sp.id)} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#ef4444', outline: '1px solid rgba(239,68,68,0.22)', fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>🗑 Usuń</button>
                   </div>
                 </div>
               ))
+
           ) : tab === 'crews' ? (
             <div>
-              <div style={{
-                ...card, marginBottom: '16px',
-                background: 'rgba(249,115,22,0.04)',
-                border: '1px solid rgba(249,115,22,0.15)',
-              }}>
-                <p style={{ color: '#f97316', fontWeight: 700, fontSize: '0.85rem', marginBottom: '12px' }}>
-                  + Dodaj nowy crew
-                </p>
+              <div style={{ ...card, marginBottom: '16px', background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.15)' }}>
+                <p style={{ color: '#f97316', fontWeight: 700, fontSize: '0.85rem', marginBottom: '12px' }}>+ Dodaj nowy crew</p>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input
-                    value={newCrewName}
-                    onChange={e => setNewCrewName(e.target.value.toUpperCase())}
-                    placeholder="Nazwa (np. TKO)"
-                    style={{
-                      flex: 1, minWidth: '120px', padding: '9px 14px', borderRadius: '9px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      background: 'rgba(255,255,255,0.05)', color: 'white',
-                      fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none',
-                    }}
-                  />
-                  <button onClick={addCrew} style={{
-                    padding: '9px 18px', borderRadius: '9px', border: 'none',
-                    background: '#f97316', color: 'white', fontWeight: 700,
-                    fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif',
-                  }}>Dodaj</button>
+                  <input value={newCrewName} onChange={e => setNewCrewName(e.target.value.toUpperCase())} placeholder="Nazwa (np. TKO)" style={{ flex: 1, minWidth: '120px', padding: '9px 14px', borderRadius: '9px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: '0.88rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none' }} />
+                  <button onClick={addCrew} style={{ padding: '9px 18px', borderRadius: '9px', border: 'none', background: '#f97316', color: 'white', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif' }}>Dodaj</button>
                 </div>
                 <div style={{ marginTop: '10px' }}>
                   <p style={{ color: '#52525b', fontSize: '0.72rem', marginBottom: '6px' }}>Wybierz kolor:</p>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {COLOR_PALETTE.map(c => (
-                      <div key={c} onClick={() => setNewCrewColor(c)} style={{
-                        width: '24px', height: '24px', borderRadius: '6px',
-                        background: c, cursor: 'pointer',
-                        outline: newCrewColor === c ? '2px solid white' : '2px solid transparent',
-                        outlineOffset: '2px', transition: 'all 0.1s',
-                      }} />
-                    ))}
+                    {COLOR_PALETTE.map(c => <div key={c} onClick={() => setNewCrewColor(c)} style={{ width: '24px', height: '24px', borderRadius: '6px', background: c, cursor: 'pointer', outline: newCrewColor === c ? '2px solid white' : '2px solid transparent', outlineOffset: '2px' }} />)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                     <span style={{ color: '#52525b', fontSize: '0.72rem' }}>Podgląd:</span>
@@ -285,84 +276,97 @@ export default function AdminPanel({ onClose, onRefresh }) {
                 </div>
                 {crewError && <p style={{ color: '#f87171', fontSize: '0.78rem', marginTop: '6px' }}>{crewError}</p>}
               </div>
-
               {crews.length === 0
                 ? <p style={{ color: '#52525b', textAlign: 'center', padding: '20px' }}>Brak crew</p>
                 : crews.map(crew => (
                   <div key={crew.id} style={{ ...card, display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ padding: '4px 14px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 700, background: crew.color, color: '#000', flexShrink: 0 }}>{crew.name}</span>
                     <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', flex: 1 }}>
-                      {COLOR_PALETTE.map(c => (
-                        <div key={c} onClick={() => updateCrewColor(crew.id, c)} style={{
-                          width: '20px', height: '20px', borderRadius: '5px',
-                          background: c, cursor: 'pointer',
-                          outline: crew.color === c ? '2px solid white' : '2px solid transparent',
-                          outlineOffset: '2px', transition: 'all 0.1s',
-                        }} />
-                      ))}
+                      {COLOR_PALETTE.map(c => <div key={c} onClick={() => updateCrewColor(crew.id, c)} style={{ width: '20px', height: '20px', borderRadius: '5px', background: c, cursor: 'pointer', outline: crew.color === c ? '2px solid white' : '2px solid transparent', outlineOffset: '2px' }} />)}
                     </div>
-                    <button onClick={() => deleteCrew(crew.id)} style={{
-                      padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer',
-                      background: 'rgba(239,68,68,0.1)', color: '#ef4444',
-                      fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0,
-                    }}>🗑</button>
+                    <button onClick={() => deleteCrew(crew.id)} style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>🗑</button>
                   </div>
                 ))
               }
             </div>
-          ) : (
-            /* UŻYTKOWNICY */
+
+          ) : tab === 'users' ? (
             users.length === 0
               ? <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Brak użytkowników</p>
               : users.map(u => {
                 const rank = u.rank ?? 0
                 const rInfo = RANKS[rank] ?? RANKS[0]
                 const isBanned = u.is_banned === true
+                const userIsAdmin = isAdmin(u.id)
+                const userIsSuperAdmin = u.id === SUPERADMIN_ID
+                const canChangeRank = isSuperAdmin || (!userIsAdmin && !userIsSuperAdmin)
+                const canBan = (isSuperAdmin && !userIsSuperAdmin) || (!userIsAdmin && !userIsSuperAdmin)
+
                 return (
                   <div key={u.id} style={{
                     ...card,
-                    border: isBanned ? '1px solid rgba(239,68,68,0.25)' : card.border,
-                    background: isBanned ? 'rgba(239,68,68,0.04)' : card.background,
+                    border: isBanned ? '1px solid rgba(239,68,68,0.25)' : userIsSuperAdmin ? '1px solid rgba(249,115,22,0.3)' : userIsAdmin ? '1px solid rgba(56,189,248,0.2)' : card.border,
+                    background: isBanned ? 'rgba(239,68,68,0.04)' : userIsSuperAdmin ? 'rgba(249,115,22,0.04)' : card.background,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span style={{ color: isBanned ? '#71717a' : 'white', fontWeight: 600, fontSize: '0.92rem', textDecoration: isBanned ? 'line-through' : 'none' }}>{u.username}</span>
+                        {userIsSuperAdmin && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(249,115,22,0.2)', color: '#f97316' }}>👑 SUPERADMIN</span>}
+                        {userIsAdmin && !userIsSuperAdmin && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8' }}>⚡ ADMIN</span>}
                         {isBanned && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>ZBANOWANY</span>}
                         {u.discord && <span style={{ color: '#71717a', fontSize: '0.75rem' }}>🎮 {u.discord}</span>}
                       </div>
-                      <span style={{
-                        padding: '3px 10px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700,
-                        background: `${rInfo.color}18`, color: rInfo.color, border: `1px solid ${rInfo.color}40`,
-                      }}>{rInfo.icon} {rInfo.label}</span>
+                      <span style={{ padding: '3px 10px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color, border: `1px solid ${rInfo.color}40` }}>{rInfo.icon} {rInfo.label}</span>
                     </div>
 
-                    {/* Rangi */}
-                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                      {Object.entries(RANKS).map(([r, info]) => (
-                        <button key={r} onClick={() => setUserRank(u.id, Number(r))} style={{
-                          padding: '5px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer',
-                          fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif',
-                          background: rank === Number(r) ? `${info.color}22` : 'rgba(255,255,255,0.04)',
-                          color: rank === Number(r) ? info.color : '#52525b',
-                          outline: rank === Number(r) ? `1px solid ${info.color}45` : 'none',
-                        }}>{info.icon} {info.label}</button>
-                      ))}
-                    </div>
+                    {/* Rangi — zablokowane dla adminów jeśli nie jesteś superadminem */}
+                    {canChangeRank ? (
+                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                        {Object.entries(RANKS).map(([r, info]) => (
+                          <button key={r} onClick={() => setUserRank(u.id, Number(r))} style={{ padding: '5px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', background: rank === Number(r) ? `${info.color}22` : 'rgba(255,255,255,0.04)', color: rank === Number(r) ? info.color : '#52525b', outline: rank === Number(r) ? `1px solid ${info.color}45` : 'none' }}>{info.icon} {info.label}</button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ color: '#3f3f46', fontSize: '0.72rem', marginBottom: '8px' }}>🔒 Rangi chronione</p>
+                    )}
 
                     {/* Ban */}
-                    <button onClick={() => toggleBan(u.id, isBanned)} style={{
-                      padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                      fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
-                      background: isBanned ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)',
-                      color: isBanned ? '#22c55e' : '#ef4444',
-                      outline: isBanned ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)',
-                    }}>
-                      {isBanned ? '✓ Odbanuj' : '🚫 Zbanuj'}
-                    </button>
+                    {canBan && (
+                      <button onClick={() => toggleBan(u.id, isBanned)} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif', background: isBanned ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)', color: isBanned ? '#22c55e' : '#ef4444', outline: isBanned ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)' }}>
+                        {isBanned ? '✓ Odbanuj' : '🚫 Zbanuj'}
+                      </button>
+                    )}
                   </div>
                 )
               })
-          )}
+
+          ) : tab === 'admins' && isSuperAdmin ? (
+            /* PANEL ADMINÓW — tylko superadmin */
+            <div>
+              <p style={{ color: '#52525b', fontSize: '0.78rem', marginBottom: '16px' }}>Zarządzaj rolami adminów. Tylko Ty możesz to zmieniać.</p>
+              {users.filter(u => u.id !== SUPERADMIN_ID).map(u => {
+                const userAdminLevel = getAdminLevel(u.id)
+                const rInfo = RANKS[u.rank ?? 0] ?? RANKS[0]
+                return (
+                  <div key={u.id} style={card}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: 'white', fontWeight: 600, fontSize: '0.92rem' }}>{u.username}</span>
+                        <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color }}>{rInfo.icon} {rInfo.label}</span>
+                      </div>
+                      <span style={{ fontSize: '0.72rem', color: userAdminLevel > 0 ? '#38bdf8' : '#3f3f46', fontWeight: 600 }}>
+                        {userAdminLevel > 0 ? '⚡ Admin' : 'Brak roli'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => setAdminRole(u.id, 0)} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', background: userAdminLevel === 0 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)', color: userAdminLevel === 0 ? 'white' : '#52525b', outline: userAdminLevel === 0 ? '1px solid rgba(255,255,255,0.2)' : 'none' }}>Brak</button>
+                      <button onClick={() => setAdminRole(u.id, 1)} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', background: userAdminLevel === 1 ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)', color: userAdminLevel === 1 ? '#38bdf8' : '#52525b', outline: userAdminLevel === 1 ? '1px solid rgba(56,189,248,0.3)' : 'none' }}>⚡ Admin</button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
