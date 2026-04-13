@@ -8,8 +8,7 @@ import HCaptcha from '@hcaptcha/react-hcaptcha'
 const HCAPTCHA_SITE_KEY = 'ed8ee266-2288-47a0-afd2-fdf495063f88'
 
 const USERNAME_WHITELIST = /^[a-zA-Z0-9._-]{3,20}$/
-const USERNAME_BLACKLIST = /(?:jeb[aą]c|kurw[aey]|chuj|pizd[aey]|pierdol|spierdal|cwel|smiec|śmie[cć]|debil|idiot|kretyn|pojeb|szmata|frajer|sukinsyn|dziwka|fuck|shit|bitch|asshole|dick|cunt|whore|nigg(?:er|a))/i
-
+const USERNAME_BLACKLIST = /(?:jeb[a\u0105]c|kurw[aey]|chuj|pizd[a\u0119y]|pierdol|spierdal|cwel|smiec|\u015bmie[c\u0107]|debil|idiot|kretyn|pojeb|szmata|frajer|sukinsyn|dziwka|fuck|shit|bitch|asshole|dick|cunt|whore|nigg(?:er|a))/iu
 function validateUsername(name) {
   if (!name) return 'Podaj nazwę użytkownika.'
   if (!USERNAME_WHITELIST.test(name)) return 'Nazwa może zawierać tylko litery, cyfry, kropki, myślniki i podkreślenia (3–20 znaków).'
