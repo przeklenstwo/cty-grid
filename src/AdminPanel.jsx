@@ -75,7 +75,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
   }
 
   async function addCrew() {
-    if (!newCrewName.trim()) { setCrewError(t('enterCrewName')); return }
+    if (!newCrewName.trim()) { setCrewError('Podaj nazwę'); return }
     const { error } = await supabase.from('crews').insert({ name: newCrewName.trim().toUpperCase(), color: newCrewColor })
     if (error) { setCrewError(error.message); return }
     setNewCrewName(''); setCrewError('')
@@ -152,10 +152,10 @@ export default function AdminPanel({ onClose, onRefresh }) {
           display: 'flex', gap: '4px', padding: '10px 26px',
           borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto',
         }}>
-          <TabBtn id="comments" label=t('commentsTab') count={comments.length} />
-          <TabBtn id="spots"    label=t('spotsTab')       count={spots.length} />
-          <TabBtn id="crews"    label=t('crewTab')         count={crews.length} />
-          <TabBtn id="users"    label=t('usersTab')  count={users.length} />
+          <TabBtn id="comments" label="💬 Komentarze" count={comments.length} />
+          <TabBtn id="spots"    label="📍 Prace"       count={spots.length} />
+          <TabBtn id="crews"    label="👥 Crew"         count={crews.length} />
+          <TabBtn id="users"    label="🏅 Użytkownicy"  count={users.length} />
         </div>
 
         {/* Body */}
@@ -185,13 +185,13 @@ export default function AdminPanel({ onClose, onRefresh }) {
                       background: 'rgba(34,197,94,0.12)', color: '#22c55e',
                       outline: '1px solid rgba(34,197,94,0.25)',
                       fontWeight: 600, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif',
-                    }}>{t('approve')}</button>
+                    }}>✓ Zatwierdź</button>
                     <button onClick={() => rejectComment(c.id)} style={{
                       padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
                       background: 'rgba(239,68,68,0.1)', color: '#ef4444',
                       outline: '1px solid rgba(239,68,68,0.22)',
                       fontWeight: 600, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif',
-                    }}>{t('reject')}</button>
+                    }}>✕ Odrzuć</button>
                   </div>
                 </div>
               ))
@@ -228,13 +228,13 @@ export default function AdminPanel({ onClose, onRefresh }) {
                       color: sp.status === 'buffed' ? '#22c55e' : '#a1a1aa',
                       outline: `1px solid ${sp.status === 'buffed' ? 'rgba(34,197,94,0.25)' : 'rgba(113,113,122,0.2)'}`,
                       fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
-                    }}>{sp.status === 'buffed' ? t('unbuff') : t('buff')}</button>
+                    }}>{sp.status === 'buffed' ? '✓ Odznacz buff' : '🪣 Buff'}</button>
                     <button onClick={() => deleteSpot(sp.id)} style={{
                       padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer',
                       background: 'rgba(239,68,68,0.1)', color: '#ef4444',
                       outline: '1px solid rgba(239,68,68,0.22)',
                       fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif',
-                    }}>{t('deleteSpotAdmin')}</button>
+                    }}>🗑 Usuń</button>
                   </div>
                 </div>
               ))
@@ -252,7 +252,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
                   <input
                     value={newCrewName}
                     onChange={e => setNewCrewName(e.target.value.toUpperCase())}
-                    placeholder={t('crewNamePlaceholder')}
+                    placeholder="Nazwa (np. TKO)"
                     style={{
                       flex: 1, minWidth: '120px', padding: '9px 14px', borderRadius: '9px',
                       border: '1px solid rgba(255,255,255,0.1)',
@@ -264,7 +264,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
                     padding: '9px 18px', borderRadius: '9px', border: 'none',
                     background: '#f97316', color: 'white', fontWeight: 700,
                     fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'Space Grotesk, sans-serif',
-                  }}>{t('addCrewBtnAdmin')}</button>
+                  }}>Dodaj</button>
                 </div>
                 <div style={{ marginTop: '10px' }}>
                   <p style={{ color: '#52525b', fontSize: '0.72rem', marginBottom: '6px' }}>Wybierz kolor:</p>
