@@ -25,8 +25,6 @@ export default function AdminPanel({ onClose, onRefresh }) {
   const [admins, setAdmins]     = useState([])
   const [loading, setLoading]   = useState(true)
   const [currentUserId, setCurrentUserId] = useState(null)
-  const [adminLevel, setAdminLevel] = useState(1)
-
   const [newCrewName, setNewCrewName]   = useState('')
   const [newCrewColor, setNewCrewColor] = useState('#f97316')
   const [crewError, setCrewError]       = useState('')
@@ -55,10 +53,6 @@ export default function AdminPanel({ onClose, onRefresh }) {
     setUsers(u.data || [])
     setCrews(cr.data || [])
     setAdmins(adm.data || [])
-    if (uid) {
-      const myAdmin = (adm.data || []).find(a => a.user_id === uid)
-      setAdminLevel(uid === SUPERADMIN_ID ? 2 : (myAdmin?.level ?? 1))
-    }
     setLoading(false)
   }
 
@@ -169,15 +163,22 @@ export default function AdminPanel({ onClose, onRefresh }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '16px', fontFamily: 'Space Grotesk, sans-serif',
     }}>
+      {/* Kluczowe: overflow hidden na kontenerze, scroll tylko w body */}
       <div style={{
-        background: '#0c0c0e', border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '18px', width: '100%', maxWidth: '740px',
-        maxHeight: '88vh', display: 'flex', flexDirection: 'column',
+        background: '#0c0c0e',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '18px',
+        width: '100%',
+        maxWidth: '700px',
+        maxHeight: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
         boxShadow: '0 40px 80px rgba(0,0,0,0.8)',
+        overflow: 'hidden',   /* scrollbar zostaje WEWNĄTRZ */
       }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 26px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           <div>
             <h2 style={{ color: 'white', fontWeight: 700, fontSize: '1.15rem', margin: 0 }}>
               {isSuperAdmin ? '👑 Superadmin' : '⚡ Panel Admina'}
@@ -186,11 +187,11 @@ export default function AdminPanel({ onClose, onRefresh }) {
               {comments.length} komentarzy czeka
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#71717a', fontSize: '1rem', cursor: 'pointer', borderRadius: '8px', width: '32px', height: '32px' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#71717a', fontSize: '1rem', cursor: 'pointer', borderRadius: '8px', width: '32px', height: '32px', flexShrink: 0 }}>✕</button>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', padding: '10px 26px', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: '4px', padding: '10px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto', flexShrink: 0 }}>
           <TabBtn id="comments" label="💬 Komentarze" count={comments.length} />
           <TabBtn id="spots"    label="📍 Prace"       count={spots.length} />
           <TabBtn id="crews"    label="👥 Crew"         count={crews.length} />
@@ -198,8 +199,8 @@ export default function AdminPanel({ onClose, onRefresh }) {
           {isSuperAdmin && <TabBtn id="admins" label="⚡ Admini" />}
         </div>
 
-        {/* Body */}
-        <div style={{ overflowY: 'auto', padding: '16px 26px', flex: 1 }}>
+        {/* Body — jedyna sekcja ze scrollem */}
+        <div style={{ overflowY: 'auto', overflowX: 'hidden', padding: '16px 24px 24px', flex: 1 }}>
           {loading ? (
             <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Ładowanie...</p>
 
@@ -227,7 +228,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
                 <div key={sp.id} style={card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                     <span style={{ color: 'white', fontWeight: 700, fontSize: '0.92rem' }}>{sp.title}</span>
-                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '9999px', fontWeight: 600, background: sp.status === 'buffed' ? 'rgba(113,113,122,0.15)' : 'rgba(34,197,94,0.1)', color: sp.status === 'buffed' ? '#71717a' : '#22c55e' }}>{sp.status === 'buffed' ? '🪣 buffed' : '✓ approved'}</span>
+                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '9999px', fontWeight: 600, background: sp.status === 'buffed' ? 'rgba(113,113,122,0.15)' : 'rgba(34,197,94,0.1)', color: sp.status === 'buffed' ? '#71717a' : '#22c55e', whiteSpace: 'nowrap' }}>{sp.status === 'buffed' ? '🪣 buffed' : '✓ approved'}</span>
                   </div>
                   {sp.crew_tags?.length > 0 && (
                     <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
@@ -266,8 +267,8 @@ export default function AdminPanel({ onClose, onRefresh }) {
                 : crews.map(crew => (
                   <div key={crew.id} style={{ ...card, display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ padding: '4px 14px', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 700, background: crew.color, color: '#000', flexShrink: 0 }}>{crew.name}</span>
-                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', flex: 1 }}>
-                      {COLOR_PALETTE.map(col => <div key={col} onClick={() => updateCrewColor(crew.id, col)} style={{ width: '20px', height: '20px', borderRadius: '5px', background: col, cursor: 'pointer', outline: crew.color === col ? '2px solid white' : '2px solid transparent', outlineOffset: '2px' }} />)}
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                      {COLOR_PALETTE.map(col => <div key={col} onClick={() => updateCrewColor(crew.id, col)} style={{ width: '20px', height: '20px', borderRadius: '5px', background: col, cursor: 'pointer', outline: crew.color === col ? '2px solid white' : '2px solid transparent', outlineOffset: '2px', flexShrink: 0 }} />)}
                     </div>
                     <button onClick={() => deleteCrew(crew.id)} style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>🗑</button>
                   </div>
@@ -286,36 +287,33 @@ export default function AdminPanel({ onClose, onRefresh }) {
                 const userIsSuperAdmin = u.id === SUPERADMIN_ID
                 const canChangeRank = isSuperAdmin || (!userIsAdmin && !userIsSuperAdmin)
                 const canBan = (isSuperAdmin && !userIsSuperAdmin) || (!userIsAdmin && !userIsSuperAdmin)
-
                 return (
                   <div key={u.id} style={{
                     ...card,
                     border: isBanned ? '1px solid rgba(239,68,68,0.25)' : userIsSuperAdmin ? '1px solid rgba(249,115,22,0.3)' : userIsAdmin ? '1px solid rgba(56,189,248,0.2)' : card.border,
                     background: isBanned ? 'rgba(239,68,68,0.04)' : userIsSuperAdmin ? 'rgba(249,115,22,0.04)' : card.background,
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ color: isBanned ? '#71717a' : 'white', fontWeight: 600, fontSize: '0.92rem', textDecoration: isBanned ? 'line-through' : 'none' }}>{u.username}</span>
-                        {userIsSuperAdmin && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(249,115,22,0.2)', color: '#f97316' }}>👑 SUPERADMIN</span>}
-                        {userIsAdmin && !userIsSuperAdmin && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8' }}>⚡ ADMIN</span>}
-                        {isBanned && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>ZBANOWANY</span>}
-                        {u.discord && <span style={{ color: '#71717a', fontSize: '0.75rem' }}>🎮 {u.discord}</span>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', minWidth: 0 }}>
+                        <span style={{ color: isBanned ? '#71717a' : 'white', fontWeight: 600, fontSize: '0.9rem', textDecoration: isBanned ? 'line-through' : 'none' }}>{u.username}</span>
+                        {userIsSuperAdmin && <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '2px 5px', borderRadius: '4px', background: 'rgba(249,115,22,0.2)', color: '#f97316', whiteSpace: 'nowrap' }}>👑 SUPER</span>}
+                        {userIsAdmin && !userIsSuperAdmin && <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '2px 5px', borderRadius: '4px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', whiteSpace: 'nowrap' }}>⚡ ADMIN</span>}
+                        {isBanned && <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '2px 5px', borderRadius: '4px', background: 'rgba(239,68,68,0.15)', color: '#f87171', whiteSpace: 'nowrap' }}>BAN</span>}
+                        {u.discord && <span style={{ color: '#52525b', fontSize: '0.72rem' }}>🎮 {u.discord}</span>}
                       </div>
-                      <span style={{ padding: '3px 10px', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color, border: `1px solid ${rInfo.color}40` }}>{rInfo.icon} {rInfo.label}</span>
+                      <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: `${rInfo.color}18`, color: rInfo.color, border: `1px solid ${rInfo.color}40`, flexShrink: 0, whiteSpace: 'nowrap' }}>{rInfo.icon} {rInfo.label}</span>
                     </div>
-
                     {canChangeRank ? (
-                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
                         {Object.entries(RANKS).map(([r, info]) => (
-                          <button key={r} onClick={() => setUserRank(u.id, Number(r))} style={{ padding: '5px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', background: rank === Number(r) ? `${info.color}22` : 'rgba(255,255,255,0.04)', color: rank === Number(r) ? info.color : '#52525b', outline: rank === Number(r) ? `1px solid ${info.color}45` : 'none' }}>{info.icon} {info.label}</button>
+                          <button key={r} onClick={() => setUserRank(u.id, Number(r))} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'Space Grotesk, sans-serif', background: rank === Number(r) ? `${info.color}22` : 'rgba(255,255,255,0.04)', color: rank === Number(r) ? info.color : '#52525b', outline: rank === Number(r) ? `1px solid ${info.color}45` : 'none' }}>{info.icon} {info.label}</button>
                         ))}
                       </div>
                     ) : (
                       <p style={{ color: '#3f3f46', fontSize: '0.72rem', marginBottom: '8px' }}>🔒 Rangi chronione</p>
                     )}
-
                     {canBan && (
-                      <button onClick={() => toggleBan(u.id, isBanned)} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif', background: isBanned ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)', color: isBanned ? '#22c55e' : '#ef4444', outline: isBanned ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)' }}>
+                      <button onClick={() => toggleBan(u.id, isBanned)} style={{ padding: '5px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem', fontFamily: 'Space Grotesk, sans-serif', background: isBanned ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)', color: isBanned ? '#22c55e' : '#ef4444', outline: isBanned ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)' }}>
                         {isBanned ? '✓ Odbanuj' : '🚫 Zbanuj'}
                       </button>
                     )}
