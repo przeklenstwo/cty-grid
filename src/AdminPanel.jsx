@@ -10,6 +10,14 @@ const RANKS = {
   3: { label: 'Legend',  color: '#f97316', icon: '👑' },
 }
 
+const VEHICLE_TYPES = [
+  { value: 'train',  label: '🚂 Pociąg' },
+  { value: 'metro',  label: '🚇 Metro' },
+  { value: 'tram',   label: '🚋 Tramwaj' },
+  { value: 'bus',    label: '🚌 Autobus' },
+  { value: 'other',  label: '🚛 Inny' },
+]
+
 const COLOR_PALETTE = [
   '#f97316','#38bdf8','#a78bfa','#34d399','#f472b6',
   '#facc15','#fb7185','#818cf8','#2dd4bf','#c084fc',
@@ -28,6 +36,8 @@ export default function AdminPanel({ onClose, onRefresh }) {
   const [newCrewName, setNewCrewName]   = useState('')
   const [newCrewColor, setNewCrewColor] = useState('#f97316')
   const [crewError, setCrewError]       = useState('')
+  const [editingTypeId, setEditingTypeId] = useState(null) // id spota którego typ edytujemy
+  const [spotSearch, setSpotSearch] = useState('')
 
   const isSuperAdmin = currentUserId === SUPERADMIN_ID
 
@@ -43,7 +53,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
     setLoading(true)
     const [c, s, u, cr, adm] = await Promise.all([
       supabase.from('comments').select('*, profiles(username, rank)').eq('status', 'pending').order('created_at', { ascending: false }),
-      supabase.from('spots').select('id, title, status, is_public, image_url, description, crew_tags').order('created_at', { ascending: false }),
+      supabase.from('spots').select('id, title, status, is_public, image_url, description, crew_tags, is_moving, vehicle_type').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('crews').select('*').order('name'),
       supabase.from('admins').select('user_id, level'),
@@ -82,6 +92,17 @@ export default function AdminPanel({ onClose, onRefresh }) {
 
   async function buffSpot(id, buffed) {
     await supabase.from('spots').update({ status: buffed ? 'buffed' : 'approved' }).eq('id', id)
+    onRefresh?.(); fetchAll(currentUserId)
+  }
+
+  // ADMIN: zmiana typu spota bezpośrednio z listy
+  async function changeSpotType(id, newIsMoving, newVehicleType) {
+    const payload = newIsMoving
+      ? { is_moving: true, vehicle_type: newVehicleType || 'train' }
+      : { is_moving: false, vehicle_type: null }
+    const { error } = await supabase.from('spots').update(payload).eq('id', id)
+    if (error) { alert('Błąd: ' + error.message); return }
+    setEditingTypeId(null)
     onRefresh?.(); fetchAll(currentUserId)
   }
 
@@ -133,6 +154,12 @@ export default function AdminPanel({ onClose, onRefresh }) {
     onRefresh?.(); fetchAll(currentUserId)
   }
 
+  function getSpotTypeLabel(sp) {
+    if (!sp.is_moving) return '📍 Normalna'
+    const v = VEHICLE_TYPES.find(x => x.value === sp.vehicle_type)
+    return v?.label || '🚛 Towarówka'
+  }
+
   function TabBtn({ id, label, count }) {
     const active = tab === id
     return (
@@ -156,6 +183,14 @@ export default function AdminPanel({ onClose, onRefresh }) {
     borderRadius: '12px', padding: '14px', marginBottom: '10px',
   }
 
+  const filteredSpots = spots.filter(sp => {
+    if (!spotSearch.trim()) return true
+    const q = spotSearch.toLowerCase()
+    return sp.title?.toLowerCase().includes(q)
+        || sp.description?.toLowerCase().includes(q)
+        || (sp.crew_tags || []).some(t => t.toLowerCase().includes(q))
+  })
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 3000,
@@ -163,18 +198,17 @@ export default function AdminPanel({ onClose, onRefresh }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '16px', fontFamily: 'Space Grotesk, sans-serif',
     }}>
-      {/* Kluczowe: overflow hidden na kontenerze, scroll tylko w body */}
       <div style={{
         background: '#0c0c0e',
         border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: '18px',
         width: '100%',
-        maxWidth: '700px',
+        maxWidth: '680px',
         maxHeight: '85vh',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '0 40px 80px rgba(0,0,0,0.8)',
-        overflow: 'hidden',   /* scrollbar zostaje WEWNĄTRZ */
+        overflow: 'hidden',
       }}>
 
         {/* Header */}
@@ -199,7 +233,7 @@ export default function AdminPanel({ onClose, onRefresh }) {
           {isSuperAdmin && <TabBtn id="admins" label="⚡ Admini" />}
         </div>
 
-        {/* Body — jedyna sekcja ze scrollem */}
+        {/* Body */}
         <div style={{ overflowY: 'auto', overflowX: 'hidden', padding: '16px 24px 24px', flex: 1 }}>
           {loading ? (
             <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Ładowanie...</p>
@@ -222,25 +256,69 @@ export default function AdminPanel({ onClose, onRefresh }) {
               ))
 
           ) : tab === 'spots' ? (
-            spots.length === 0
-              ? <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Brak prac</p>
-              : spots.map(sp => (
-                <div key={sp.id} style={card}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ color: 'white', fontWeight: 700, fontSize: '0.92rem' }}>{sp.title}</span>
-                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '9999px', fontWeight: 600, background: sp.status === 'buffed' ? 'rgba(113,113,122,0.15)' : 'rgba(34,197,94,0.1)', color: sp.status === 'buffed' ? '#71717a' : '#22c55e', whiteSpace: 'nowrap' }}>{sp.status === 'buffed' ? '🪣 buffed' : '✓ approved'}</span>
-                  </div>
-                  {sp.crew_tags?.length > 0 && (
-                    <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                      {sp.crew_tags.map(tag => <span key={tag} style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '9999px', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.2)' }}>{tag}</span>)}
+            <>
+              <input
+                value={spotSearch}
+                onChange={e => setSpotSearch(e.target.value)}
+                placeholder="🔍 Szukaj po tytule/opisie/crew..."
+                style={{ width: '100%', padding: '9px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: '0.85rem', fontFamily: 'Space Grotesk, sans-serif', outline: 'none', marginBottom: '12px', boxSizing: 'border-box' }}
+              />
+              {filteredSpots.length === 0
+                ? <p style={{ color: '#52525b', textAlign: 'center', padding: '40px' }}>Brak prac</p>
+                : filteredSpots.map(sp => {
+                  const typeLabel = getSpotTypeLabel(sp)
+                  const isEditing = editingTypeId === sp.id
+                  return (
+                    <div key={sp.id} style={card}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', gap: '8px' }}>
+                        <span style={{ color: 'white', fontWeight: 700, fontSize: '0.92rem', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sp.title}</span>
+                        <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '9999px', fontWeight: 600, background: sp.status === 'buffed' ? 'rgba(113,113,122,0.15)' : 'rgba(34,197,94,0.1)', color: sp.status === 'buffed' ? '#71717a' : '#22c55e', whiteSpace: 'nowrap', flexShrink: 0 }}>{sp.status === 'buffed' ? '🪣 buffed' : '✓ approved'}</span>
+                      </div>
+
+                      {/* Tagi crew */}
+                      {sp.crew_tags?.length > 0 && (
+                        <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                          {sp.crew_tags.map(tag => <span key={tag} style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '9999px', background: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.2)' }}>{tag}</span>)}
+                        </div>
+                      )}
+
+                      {/* TYP SPOTA — admin edycja */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.15)' }}>
+                        <span style={{ color: '#38bdf8', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>Typ:</span>
+                        <span style={{ color: 'white', fontSize: '0.78rem', fontWeight: 600, flex: 1 }}>{typeLabel}</span>
+                        <button onClick={() => setEditingTypeId(isEditing ? null : sp.id)} style={{ padding: '3px 9px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: isEditing ? 'rgba(255,255,255,0.08)' : 'rgba(56,189,248,0.12)', color: isEditing ? '#a1a1aa' : '#38bdf8', fontWeight: 700, fontSize: '0.68rem', fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0 }}>
+                          {isEditing ? 'Anuluj' : '✎'}
+                        </button>
+                      </div>
+
+                      {isEditing && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '10px', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                          <button
+                            onClick={() => changeSpotType(sp.id, false, null)}
+                            style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: !sp.is_moving ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.04)', color: !sp.is_moving ? '#f97316' : '#a1a1aa', fontWeight: 600, fontSize: '0.7rem', fontFamily: 'Space Grotesk, sans-serif', outline: !sp.is_moving ? '1px solid rgba(249,115,22,0.4)' : 'none' }}
+                          >📍 Normalna</button>
+                          {VEHICLE_TYPES.map(v => {
+                            const active = sp.is_moving && sp.vehicle_type === v.value
+                            return (
+                              <button
+                                key={v.value}
+                                onClick={() => changeSpotType(sp.id, true, v.value)}
+                                style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: active ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.04)', color: active ? '#f97316' : '#a1a1aa', fontWeight: 600, fontSize: '0.7rem', fontFamily: 'Space Grotesk, sans-serif', outline: active ? '1px solid rgba(249,115,22,0.4)' : 'none' }}
+                              >{v.label}</button>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => buffSpot(sp.id, sp.status !== 'buffed')} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: sp.status === 'buffed' ? 'rgba(34,197,94,0.1)' : 'rgba(113,113,122,0.1)', color: sp.status === 'buffed' ? '#22c55e' : '#a1a1aa', outline: `1px solid ${sp.status === 'buffed' ? 'rgba(34,197,94,0.25)' : 'rgba(113,113,122,0.2)'}`, fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>{sp.status === 'buffed' ? '✓ Odznacz buff' : '🪣 Buff'}</button>
+                        <button onClick={() => deleteSpot(sp.id)} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#ef4444', outline: '1px solid rgba(239,68,68,0.22)', fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>🗑 Usuń</button>
+                      </div>
                     </div>
-                  )}
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => buffSpot(sp.id, sp.status !== 'buffed')} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: sp.status === 'buffed' ? 'rgba(34,197,94,0.1)' : 'rgba(113,113,122,0.1)', color: sp.status === 'buffed' ? '#22c55e' : '#a1a1aa', outline: `1px solid ${sp.status === 'buffed' ? 'rgba(34,197,94,0.25)' : 'rgba(113,113,122,0.2)'}`, fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>{sp.status === 'buffed' ? '✓ Odznacz buff' : '🪣 Buff'}</button>
-                    <button onClick={() => deleteSpot(sp.id)} style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.1)', color: '#ef4444', outline: '1px solid rgba(239,68,68,0.22)', fontWeight: 600, fontSize: '0.78rem', fontFamily: 'Space Grotesk, sans-serif' }}>🗑 Usuń</button>
-                  </div>
-                </div>
-              ))
+                  )
+                })
+              }
+            </>
 
           ) : tab === 'crews' ? (
             <div>

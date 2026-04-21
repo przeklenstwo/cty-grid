@@ -5,8 +5,15 @@ import { notifyAdmin } from './notify'
 
 const COMMENT_TYPES = [
   { value: 'normal', label: '💬 Komentarz', minRank: 0 },
-  { value: 'hazard', label: '⚠️ Przypał',   minRank: 2 },
   { value: 'tip',    label: '💡 Tip',        minRank: 1 },
+]
+
+const VEHICLE_TYPES = [
+  { value: 'train',  label: '🚂 Pociąg' },
+  { value: 'metro',  label: '🚇 Metro' },
+  { value: 'tram',   label: '🚋 Tramwaj' },
+  { value: 'bus',    label: '🚌 Autobus' },
+  { value: 'other',  label: '🚛 Inny' },
 ]
 
 const RANKS = {
@@ -43,6 +50,10 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
   const [confirmBuff, setConfirmBuff]   = useState(false)
   const [buffSent, setBuffSent]         = useState(false)
   const [vw, setVw]                     = useState(window.innerWidth)
+
+  // ADMIN: lokalny stan do edycji typu spota
+  const [editingType, setEditingType]   = useState(false)
+  const [typeSaving, setTypeSaving]     = useState(false)
 
   const isOwner   = userId === spot.user_id
   const canDelete = isOwner || isAdmin
@@ -92,7 +103,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
 
   async function fetchComments() {
     const { data } = await supabase.from('comments').select('*, profiles(username, rank)').eq('spot_id', spot.id).eq('status', 'approved').order('created_at', { ascending: true })
-    const all = (data || []).filter(c => c.comment_type === 'hazard' ? (userRank >= 2 || isAdmin) : true)
+    const all = data || []
     setComments(all.filter(c => !c.parent_id))
     const repliesMap = {}
     all.filter(c => c.parent_id).forEach(r => { if (!repliesMap[r.parent_id]) repliesMap[r.parent_id] = []; repliesMap[r.parent_id].push(r) })
@@ -127,6 +138,20 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
   async function handleAdminBuff() { await supabase.from('spots').update({ status: 'buffed' }).eq('id', spot.id); onRefresh?.(); onClose() }
   async function handleAdminUnbuff() { await supabase.from('spots').update({ status: 'approved' }).eq('id', spot.id); onRefresh?.(); onClose() }
 
+  // ADMIN: zmiana typu spota (normalna pinezka <-> towarówka)
+  async function handleChangeSpotType(newIsMoving, newVehicleType) {
+    setTypeSaving(true)
+    const payload = newIsMoving
+      ? { is_moving: true, vehicle_type: newVehicleType || 'train' }
+      : { is_moving: false, vehicle_type: null }
+    const { error } = await supabase.from('spots').update(payload).eq('id', spot.id)
+    setTypeSaving(false)
+    if (error) { alert('Błąd: ' + error.message); return }
+    setEditingType(false)
+    onRefresh?.()
+    onClose() // zamykam modal żeby otworzył się ze świeżymi danymi
+  }
+
   async function handleDelete() {
     setDeleting(true)
     if (imageList.length > 0) {
@@ -142,7 +167,10 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
   function goToProfile(uid) { onClose(); navigate(`/profile/${uid}`) }
 
   function CommentTypeBadge({ type }) {
-    const map = { hazard: { label: '⚠️ Przypał', bg: 'rgba(239,68,68,0.12)', color: '#f87171' }, tip: { label: '💡 Tip', bg: 'rgba(234,179,8,0.1)', color: '#eab308' }, buff_report: { label: '🪣 Buff', bg: 'rgba(113,113,122,0.15)', color: '#a1a1aa' } }
+    const map = {
+      tip:         { label: '💡 Tip',  bg: 'rgba(234,179,8,0.1)',    color: '#eab308' },
+      buff_report: { label: '🪣 Buff', bg: 'rgba(113,113,122,0.15)', color: '#a1a1aa' },
+    }
     const m = map[type]; if (!m) return null
     return <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: m.bg, color: m.color }}>{m.label}</span>
   }
@@ -151,7 +179,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
     const commentReplies = replies[c.id] || []
     return (
       <div style={{ marginBottom: isReply ? '6px' : '10px' }}>
-        <div style={{ padding: '9px 12px', borderRadius: '10px', background: isReply ? 'rgba(255,255,255,0.02)' : c.comment_type === 'hazard' ? 'rgba(239,68,68,0.05)' : 'rgba(255,255,255,0.03)', border: isReply ? '1px solid rgba(255,255,255,0.04)' : c.comment_type === 'hazard' ? '1px solid rgba(239,68,68,0.15)' : '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ padding: '9px 12px', borderRadius: '10px', background: isReply ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.03)', border: isReply ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <button onClick={() => goToProfile(c.user_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: rankColors[c.profiles?.rank ?? 0], fontWeight: 700, fontSize: '0.8rem', fontFamily: 'Space Grotesk, sans-serif' }}>{c.profiles?.username || 'Anonim'}</button>
@@ -185,6 +213,50 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
 
   const availableTypes = COMMENT_TYPES.filter(t => userRank >= t.minRank || isAdmin)
 
+  // Label aktualnego typu spota
+  const currentVehicle = VEHICLE_TYPES.find(v => v.value === spot.vehicle_type)
+  const spotTypeLabel = spot.is_moving
+    ? (currentVehicle?.label || '🚛 Towarówka')
+    : '📍 Pinezka normalna'
+
+  // Admin panel do zmiany typu
+  function AdminTypeEditor() {
+    if (!isAdmin) return null
+    return (
+      <div style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.2)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: editingType ? '8px' : 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: '#f97316', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>⚡ Typ:</span>
+            <span style={{ color: 'white', fontSize: '0.78rem', fontWeight: 600 }}>{spotTypeLabel}</span>
+          </div>
+          <button onClick={() => setEditingType(e => !e)} style={{ padding: '4px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: editingType ? 'rgba(255,255,255,0.08)' : 'rgba(249,115,22,0.15)', color: editingType ? '#a1a1aa' : '#f97316', fontWeight: 700, fontSize: '0.7rem', fontFamily: 'Space Grotesk, sans-serif' }}>
+            {editingType ? 'Anuluj' : '✎ Zmień'}
+          </button>
+        </div>
+        {editingType && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+            <button
+              disabled={typeSaving}
+              onClick={() => handleChangeSpotType(false, null)}
+              style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: typeSaving ? 'wait' : 'pointer', background: !spot.is_moving ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.04)', color: !spot.is_moving ? '#f97316' : '#a1a1aa', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: !spot.is_moving ? '1px solid rgba(249,115,22,0.4)' : 'none', opacity: typeSaving ? 0.5 : 1 }}
+            >📍 Pinezka normalna</button>
+            {VEHICLE_TYPES.map(v => {
+              const active = spot.is_moving && spot.vehicle_type === v.value
+              return (
+                <button
+                  key={v.value}
+                  disabled={typeSaving}
+                  onClick={() => handleChangeSpotType(true, v.value)}
+                  style={{ padding: '5px 10px', borderRadius: '7px', border: 'none', cursor: typeSaving ? 'wait' : 'pointer', background: active ? 'rgba(249,115,22,0.2)' : 'rgba(255,255,255,0.04)', color: active ? '#f97316' : '#a1a1aa', fontWeight: 600, fontSize: '0.72rem', fontFamily: 'Space Grotesk, sans-serif', outline: active ? '1px solid rgba(249,115,22,0.4)' : 'none', opacity: typeSaving ? 0.5 : 1 }}
+                >{v.label}</button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // Panel z info + komentarzami (wspólny dla mobile i desktop)
   function RightPanel() {
     return (
@@ -211,6 +283,7 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
 
           <div style={{ display: 'flex', gap: '6px', marginTop: '7px', flexWrap: 'wrap', alignItems: 'center' }}>
             {isBuffed && <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: 'rgba(113,113,122,0.15)', color: '#71717a' }}>🪣 BUFFED</span>}
+            {spot.is_moving && <span style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: 'rgba(56,189,248,0.15)', color: '#38bdf8' }}>{currentVehicle?.label || '🚛 Towarówka'}</span>}
             <span style={{ color: '#52525b', fontSize: '0.72rem' }}>📌 {spot.location_fuzzed ? `~${spot.fuzz_radius}m` : `${spot.lat?.toFixed(4)}, ${spot.lng?.toFixed(4)}`}</span>
             <span style={{ color: spot.is_public ? '#22c55e' : '#f97316', fontSize: '0.72rem' }}>{spot.is_public ? '🌍 Public' : '🔒 Private'}</span>
             {(spot.crew_tags || []).map(crew => <span key={crew} style={{ padding: '2px 8px', borderRadius: '9999px', fontSize: '0.68rem', fontWeight: 700, background: crewMap[crew] || '#f97316', color: '#000' }}>{crew}</span>)}
@@ -248,6 +321,9 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
             </div>}
             {buffSent && <span style={{ color: '#71717a', fontSize: '0.72rem' }}>✅ Zgłoszono</span>}
           </div>
+
+          {/* ADMIN: zmiana typu spota */}
+          <AdminTypeEditor />
 
           {confirmDelete && (
             <div style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -328,18 +404,15 @@ export default function SpotModal({ spot, userId, userRank = 0, isAdmin, onClose
     )
   }
 
-  // ── DESKTOP: zdjęcie osobno po lewej, modal po prawej, mapa widoczna ────────
+  // ── DESKTOP ────────────────────────────────────────────────────────────────
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 2000, pointerEvents: 'none', fontFamily: 'Space Grotesk, sans-serif' }}>
-      {/* Ciemnienie tylko za panelami — kliknięcie poza zamyka */}
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }} />
 
-      {/* Zdjęcie */}
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-100%, -50%)', width: 'min(46vw, 680px)', height: 'min(80vh, 840px)', borderRadius: '20px', boxShadow: '0 30px 80px rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', pointerEvents: 'auto' }}>
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-100%, -50%)', width: 'auto', maxWidth: 'min(46vw, 680px)', height: 'min(80vh, 840px)', borderRadius: '20px', boxShadow: '0 30px 80px rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', pointerEvents: 'auto' }}>
         <ImagePanel style={{ width: '100%', height: '100%' }} />
       </div>
 
-      {/* Modal */}
       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(4%, -50%)', width: 'min(34vw, 480px)', height: 'min(80vh, 840px)', background: '#0c0c0e', border: isBuffed ? '1px solid rgba(113,113,122,0.35)' : '1px solid rgba(255,255,255,0.09)', borderRadius: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.8)', pointerEvents: 'auto' }}>
         <RightPanel />
       </div>
